@@ -7,6 +7,8 @@ import numpy as np
 import time
 import random
 import matplotlib.animation as animation
+import imageio.v3 as imageio
+from mpl_toolkits.mplot3d import Axes3D
 
 from stepper import generate_dataset
 
@@ -68,12 +70,12 @@ bc = None
 x_domain_extent = 100.0
 y_domain_extent = 100.0 # i think they dont work or i dont knwo how they do
 z_domain_extent = 100.0  # i think they dont work or i dont knwo how they do
-num_points = 100 
-dt = 0.1
+num_points = 100
+dt = 0.001
 t_end = 100.0 
 save_freq = 1 
-simulations = 10
-plotted_sim = 3
+simulations = 3
+plotted_sim = 1
 
 # For Burgers equation, set viscosity
 nu = 0.1
@@ -106,6 +108,7 @@ os.makedirs(base_dir, exist_ok=True)
 file_name = "dataset.h5"
 data_path = os.path.join(base_dir, file_name)
 plots_path = os.path.join(base_dir, "plots")
+plots_3d_path = os.path.join(base_dir, "plots_3d")
 os.makedirs(plots_path, exist_ok=True)
 
 # Create the h5py file and save the dataset
@@ -123,48 +126,117 @@ with h5py.File(data_path, "w") as h5file:
             print(f"  Dataset: {name} - Shape: {obj.shape}, Dtype: {obj.dtype}")
 
 # ========================
-# Plot 2D animation
+# Plot render center slices
 # ========================
 random.seed(time.time())
 selected_simulations = random.sample(range(len(seed_list)), plotted_sim)
 
 for n_sim in selected_simulations:
     seed = seed_list[n_sim]
-    u_xt = all_trajectories[n_sim]
+    u_xt = all_trajectories[n_sim]  # shape: (T, C, X, Y, Z)
 
-    num_channels = u_xt.shape[1]  # Number of channels (e.g., 1 for u, 2 for u and v in Burgers)
+    num_channels = u_xt.shape[1]
     
-    for ch in range(num_channels):  # loop over each channel
-        u_component = u_xt[:, ch]  # shape: (T, H, W)
+    for ch in range(num_channels):
+        u_component = u_xt[:, ch]  # shape: (T, X, Y, Z)
+        T, X, Y, Z = u_component.shape
 
-        extent = (
-            0, x_domain_extent,
-            0, y_domain_extent)
+        # Get central slice in Z direction
+        center_z = Z // 2
+        slice_sequence = u_component[:, :, :, center_z]  # shape: (T, X, Y)
 
-        fig, ax = plt.subplots(figsize=(10, 10))
-        im = ax.imshow(u_component[0].T, cmap='RdBu', origin='lower', extent=extent,
-                    vmin=-2, vmax=2, aspect='auto')
+        extent = (0, x_domain_extent, 0, y_domain_extent)
+
+        fig, ax = plt.subplots(figsize=(8, 6))
+        im = ax.imshow(slice_sequence[0].T, cmap='RdBu', origin='lower',
+                       extent=extent, vmin=-12, vmax=12, aspect='auto')
+
         cbar = fig.colorbar(im, ax=ax)
-        cbar.set_label("u(x, t)")
-
-        title = ax.set_title(f"{ic} - seed {seed} - channel {ch} - t = 0")
+        cbar.set_label("u(x, y, z_center)")
+        title = ax.set_title(f"{ic} – seed {seed} – channel {ch} – t = 0")
         ax.set_xlabel("x")
         ax.set_ylabel("y")
 
-        # Animation update function
         def update(t_idx):
-            frame = u_component[t_idx].T  # transpose so x is horizontal and y vertical
-            im.set_array(frame)
-            title.set_text(f"{ic} - seed {seed} - channel {ch} - t = {t_idx}")
+            im.set_array(slice_sequence[t_idx].T)
+            title.set_text(f"{ic} – seed {seed} – channel {ch} – t = {t_idx}")
             return im, title
-        
-        skip = 2  # or compute it based on desired duration
-        frames = range(0, u_component.shape[0], skip)
+
+        skip = 2
+        frames = range(0, T, skip)
         ani = animation.FuncAnimation(fig, update, frames=frames, blit=False)
 
-        # Save the MP4
-        video_path = os.path.join(plots_path, f"evolution_seed_{seed}_channel_{ch}.mp4")
-        ani.save(video_path, writer='ffmpeg', fps=60)
-        print(f"Animation saved at {video_path} for seed {seed}, channel {ch}")
+        video_path = os.path.join(plots_path, f"center_slice_seed_{seed}_channel_{ch}.mp4")
+        ani.save(video_path, writer='ffmpeg', fps=30)
+        print(f"Animation saved at {video_path}")
 
         plt.close(fig)
+# # ========================
+# # Plot 3D animation (time-intensive)
+# # ========================
+# random.seed(time.time())
+# selected_simulations = random.sample(range(len(seed_list)), plotted_sim)
+
+# for n_sim in selected_simulations:
+#     seed = seed_list[n_sim]
+#     u_xt = all_trajectories[n_sim]
+
+#     num_channels = u_xt.shape[1]  # Number of channels (e.g., 1 for u, 2 for u and v in Burgers)
+    
+#     for ch in range(num_channels):  # loop over each channel
+#         u_component = u_xt[:, ch]  # shape: (T, H, W)
+
+#         extent = (
+#             0, x_domain_extent,
+#             0, y_domain_extent,
+#             0, z_domain_extent)
+        
+#          # Compute global vmin/vmax for normalization (you can also set fixed values)
+#         vmin = -2
+#         vmax = 2
+        
+#         frame_dir = os.path.join(plots_3d_path, f"frames_seed_{seed}_channel{ch}")
+#         os.makedirs(frame_dir, exist_ok=True)
+#         frame_paths = []
+
+#         print(f"Rendering 3D frames for seed {seed}, channel {ch}...")
+        
+#         skip = 2
+#         frames = range(0, u_component.shape[0], skip)
+
+#         for t in frames:
+#             volume = u_component[t]  # (X, Y, Z)
+#             normed = (volume - vmax) / (vmax - vmin)
+
+#             cmap = plt.cm.RdBu
+#             colors = cmap(normed)  # Shape: (X, Y, Z, 4)
+#             filled = np.ones_like(volume, dtype=bool)
+
+#             fig = plt.figure(figsize=(6, 6))
+#             ax = fig.add_subplot(111, projection='3d')
+#             ax.voxels(filled, facecolors=colors, edgecolor='none')
+
+#             ax.set_title(f"{ic} – Seed {seed} – Ch {ch} – t = {t}")
+#             ax.set_xlabel("X")
+#             ax.set_ylabel("Y")
+#             ax.set_zlabel("Z")
+#             ax.view_init(elev=20, azim=30)
+
+#             frame_path = os.path.join(frame_dir, f"frame_{t:03}.png")
+#             plt.savefig(frame_path, bbox_inches='tight')
+#             frame_paths.append(frame_path)
+#             plt.close(fig)
+
+#         # Make MP4 animation
+#         video_path = os.path.join(plots_path, f"evolution3D_seed_{seed}_channel_{ch}.mp4")
+#         writer = imageio.get_writer(video_path, fps=10)
+#         for fpath in frame_paths:
+#             frame = imageio.imread(fpath)
+#             if frame.ndim == 2:
+#                 frame = np.stack([frame]*3, axis=-1)
+#             elif frame.shape[2] == 4:
+#                 frame = frame[:, :, :3]
+#             writer.append_data(frame)
+#         writer.close()
+
+#         print(f"3D animation saved at {video_path}")
