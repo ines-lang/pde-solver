@@ -20,17 +20,19 @@ The simulation pipeline is organized as follows:
 - **`stepper.py`** – Parses parameters and initializes the PDE simulation.
 
 When executed, the code creates a directory structure based on the selected PDE and initial condition. Example output structure:
-
+Output structure:
+```
 1D/
 ├── dataset_generator.py
 ├── stepper.py
-└── pde/
-└── ic/
-├── dataset.h5
-├── dataset_stats.py
-├── metadata.json
-└── plots/
-└── seed_i.png # for 1D
+├── pde/
+│   └── ic/
+│       ├── dataset.h5
+│       ├── dataset_stats.py
+│       ├── metadata.json
+│       └── plots/
+│           └── seed_i.png  # for 1D
+```
 
 - Simulation trajectories are stored in an HDF5 file (`dataset.h5`) using keys like `velocity_000`, `velocity_001`, ..., `velocity_NNN`.
 - Visualization outputs are saved in the `plots/` folder.
