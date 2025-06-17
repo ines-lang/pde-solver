@@ -1,0 +1,6 @@
+idea_centralized/
+1D/exponax/
+2D/exponax/
+3D/exponax/
+*.h5
+**/plots/
