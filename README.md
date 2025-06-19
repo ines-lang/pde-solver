@@ -28,8 +28,8 @@ Output structure:
 ├── pde/
 │   └── ic/
 │       ├── dataset.h5
-│       ├── dataset_stats.py
 │       ├── metadata.json
+│       ├── dataset_stats.py
 │       └── plots/
 │           └── seed_i.png  # for 1D
 ```

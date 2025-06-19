@@ -13,7 +13,7 @@ def generate_dataset(pde: str,
                       num_spatial_dims: int,
                       x_domain_extent: float,
                       num_points: int,
-                      dt: float, 
+                      dt_solver: float, 
                       t_end: float,
                       save_freq: int, 
                       nu: float,
@@ -23,7 +23,7 @@ def generate_dataset(pde: str,
         ks_class = getattr(ex.stepper, pde)
         ks_stepper = ks_class(
             num_spatial_dims=num_spatial_dims, domain_extent=x_domain_extent,
-            num_points=num_points, dt=dt,
+            num_points=num_points, dt=dt_solver,
             )
         all_trajectories = []
         for seed in seed_list:
@@ -41,7 +41,7 @@ def generate_dataset(pde: str,
         burgers_class = getattr(ex.stepper, pde)
         burgers_stepper = burgers_class(
             num_spatial_dims=num_spatial_dims, domain_extent=x_domain_extent,
-            num_points=num_points, dt=dt,
+            num_points=num_points, dt=dt_solver,
             )
         all_trajectories = []
         for seed in seed_list:

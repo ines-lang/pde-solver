@@ -33,8 +33,8 @@ x_domain_extent : float
 num_points : int
     Number of points in each spatial dimension (spatial resolution)
 
-dt : float
-    Time step size
+dt_solver : float
+    Time step size used by the numerical solver to integrate the PDE.
 
 t_end : float
     Final simulation time
@@ -59,7 +59,7 @@ bc = None
 
 x_domain_extent = 100.0
 num_points = 200 
-dt = 0.1
+dt_solver = 0.1
 t_end = 1000.0 
 save_freq = 1 
 simulations = 50
@@ -80,7 +80,7 @@ all_trajectories = generate_dataset(
     bc=bc,
     x_domain_extent=x_domain_extent,
     num_points=num_points,  
-    dt=dt,
+    dt_solver=dt_solver,
     t_end=t_end,
     nu=nu,
     save_freq=save_freq,
