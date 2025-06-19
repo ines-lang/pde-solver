@@ -1,3 +1,4 @@
+# 2D
 KS has one channel and Burgers two (for u and v)
 Doesn´t work good yet for big numbers of simulations (order of magnitude where it works: 10). Exhausted.
 Plots still has unfixed values of -2 and 2. Added at the metadata until solved.
