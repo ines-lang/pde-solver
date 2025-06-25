@@ -1,4 +1,7 @@
 import os
+import os
+os.environ["JAX_PLATFORM_NAME"] = "cpu"
+
 import h5py
 import exponax as ex
 import matplotlib.pyplot as plt
@@ -50,6 +53,9 @@ save_freq : int
 nu : float
     Viscosity (used only for Burgers)
 
+Re : float
+    Reynolds number (used only for Kolmogorov)
+
 simulations : int
     Number of simulations to run
 
@@ -57,22 +63,24 @@ plotted_sim : int
     Number of simulations to plot
 """
 
-pde = "Burgers" # options: KuramotoSivashinsky (ks), Burgers
+pde = "Kolmogorov" # options: KuramotoSivashinsky (ks), Burgers, Kolmogorov
 num_spatial_dims = 2
-ic = "RandomTruncatedFourierSeries" # options: 'RandomTruncatedFourierSeries'
+ic = "RandomSpectralVorticityField" # options: 'RandomTruncatedFourierSeries'
 bc = None
 
 x_domain_extent = 100.0
 y_domain_extent = 100.0 # i dont know if it works or i dont know how it does
-num_points = 200 
+num_points = 100 
 dt_solver = 0.001
-t_end = 1000.0 
-save_freq = 1 
-simulations = 10
-plotted_sim = 3
+t_end = 100.0 
+save_freq = 100
+simulations = 1
+plotted_sim = 1
 
 # For Burgers equation, set viscosity
 nu = 0.1
+# For Kolmogorov equation, set Reynolds number
+Re = 250
 
 # =========================================
 # GENERATE AND SAVE DATASET
@@ -90,6 +98,7 @@ all_trajectories = generate_dataset(
     dt_solver=dt_solver,
     t_end=t_end,
     nu=nu,
+    Re=Re,
     save_freq=save_freq,
     seed_list=seed_list)
 all_trajectories = jnp.stack(all_trajectories)
@@ -106,6 +115,7 @@ os.makedirs(plots_path, exist_ok=True)
 # Create the h5py file and save the dataset
 with h5py.File(data_path, "w") as h5file:
     for sim_idx in range(len(seed_list)):
+        sim_idx = int(sim_idx)  # Ensure sim_idx is an integer
         seed = seed_list[sim_idx]
         u_xt = all_trajectories[sim_idx, :, :, :]
         dataset_name = f'velocity_{seed:03d}'

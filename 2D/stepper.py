@@ -2,11 +2,17 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 from typing import List
+import sys
 
 import exponax as ex
 from exponax.stepper import KuramotoSivashinsky
 from exponax.ic import *
 
+sys.path.append("/local/disk1/stu_isuarez/pde-solver/2D/kolmogorov-flow/Controlling_Kolmogorov-Flow") 
+from kolmogorov_flow.Controlling_Kolmogorov_Flow.solvers import transient
+from kolmogorov_flow.Controlling_Kolmogorov_Flow.equations.flow import FlowConfig 
+import kolmogorov_flow.Controlling_Kolmogorov_Flow.equations.base as base
+import kolmogorov_flow.Controlling_Kolmogorov_Flow.equations.utils as utils 
 
 def generate_dataset(pde: str,
                       ic: str, 
@@ -19,6 +25,7 @@ def generate_dataset(pde: str,
                       t_end: float,
                       save_freq: int, 
                       nu: float,
+                      Re: float,
                       seed_list:List):
     
     if pde == "KuramotoSivashinsky":
@@ -79,6 +86,52 @@ def generate_dataset(pde: str,
             all_trajectories.append(sampled_traj)
             # using numpyyy todooo
         all_trajectories = np.stack(all_trajectories)  # shape: (N, T_sampled, C, X)
+        return all_trajectories
+    elif pde == "Kolmogorov":
+        dt = dt_solver
+        end_time = t_end
+        save_time = save_freq
+        total_steps = int(end_time // dt)
+        step_to_save = int(save_time // dt)
+
+        all_trajectories = []
+
+        for seed in seed_list:
+            flow = FlowConfig(grid_size=(num_points, num_points))
+            print("grid_size (should output (100, 100)) :", flow.grid_size)
+            flow.Re = Re
+            flow.k = 4
+
+            # grid = flow.create_fft_mesh()
+            # Initialize state in Fourier space
+            omega_0 = flow.initialize_state()
+
+            # Setup PDE equation and time stepper
+            equation = base.PseudoSpectralNavierStokes2D(flow)
+            step_fn = transient.RK4_CN(equation, dt)
+            # Run simulation and recover real-space vorticity
+            _, trajectory_real = transient.iterative_func(
+                step_fn, omega_0, total_steps, step_to_save, ignore_intermediate_steps=True)
+            print("trajectory shape (should be (T_sampled, 100, 100)):", trajectory_real.shape)
+            # trajectory tiene shape: (T_sampled, X, Y)
+            # Lo convertimos a shape (T_sampled, 1, X*Y)
+            # trajectory = jnp.reshape(trajectory, (trajectory.shape[0], 1, -1))  # (T_sampled, C=1, X)
+            # trajectory_real = jnp.fft.irfftn(omega_hat, s=(Nx, Ny), axes=(0, 1))
+            trajectory = np.array(trajectory_real)  # shape: (T_sampled, X, Y) and changed from jnp to np
+            trajectory = np.expand_dims(trajectory, axis=1)  # añade canal C=1 en dim 1
+            
+            all_trajectories.append(trajectory) 
+            print("Shape before stacking (Should be (T_sampled, 1, X, Y)):", trajectory.shape)
+        # Convertimos la lista a array
+        # all_trajectories = np.stack(all_trajectories)  # shape: (N, T_sampled, C, X, Y)
+        # all_trajectories = jax.device_get(all_trajectories)  # Convert to JAX array if needed
+        # all_trajectories = np.array(all_trajectories)  # Ensure it's a numpy array
+        # Convierte todo a NumPy en CPU ANTES de apilar
+        all_trajectories = [np.array(jax.device_get(traj)) for traj in all_trajectories]
+        all_trajectories = np.stack(all_trajectories)
+        print(type(all_trajectories))  # debe decir <class 'numpy.ndarray'>
+        print(all_trajectories.shape)  # y la forma esperada (N, T, 1, X, Y)
+
         return all_trajectories
     else:
         raise ValueError(f"PDE '{pde}' not implemented.")
