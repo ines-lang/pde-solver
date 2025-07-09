@@ -6,5 +6,5 @@ __pycache__/
 *.h5
 **/plots/
 **/plots_3d/
-3D/generate_dataset.py
-3D/stepper.py
+Kolmogorov/
+2D/kolmogorov_flow/

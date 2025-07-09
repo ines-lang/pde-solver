@@ -32,11 +32,9 @@ bc : callable
 num_spatial_dims : int
     Number of spatial dimensions. 1 for this plot as we are using a 1D PDE
 
-x_domain_extent : float
+domain_extent : float
     Spatial domain extent (length of the domain in each spatial dimension)
-
-y_domain_extent : float
-    Spatial domain extent (length of the domain in each spatial dimension)
+    x_domain_extent and y_domain_extent must be the same for the solver to work.
 
 num_points : int
     Number of points in each spatial dimension (spatial resolution)
@@ -69,8 +67,7 @@ ic = "RandomSpectralVorticityField" # options: 'RandomTruncatedFourierSeries'
 bc = None
 
 x_domain_extent = 100.0
-y_domain_extent = 100.0 # i dont know if it works or i dont know how it does
-num_points = 100 
+y_domain_extent = 100.0 
 dt_solver = 0.001
 t_end = 100.0 
 save_freq = 100

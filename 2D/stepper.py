@@ -19,7 +19,6 @@ def generate_dataset(pde: str,
                       bc: callable, 
                       num_spatial_dims: int,
                       x_domain_extent: float,
-                      y_domain_extent: float,
                       num_points: int,
                       dt_solver: float, 
                       t_end: float,
@@ -51,7 +50,7 @@ def generate_dataset(pde: str,
         burgers_class = getattr(ex.stepper, pde)
         burgers_stepper = burgers_class(
             num_spatial_dims=num_spatial_dims, 
-            domain_extent=x_domain_extent, # cuidado con el dominio
+            domain_extent=x_domain_extent,
             num_points=num_points, 
             dt=dt_solver,
             )
@@ -84,7 +83,6 @@ def generate_dataset(pde: str,
             trajectories = ex.rollout(burgers_stepper, t_end, include_init=True)(u_0)
             sampled_traj = trajectories[::save_freq]
             all_trajectories.append(sampled_traj)
-            # using numpyyy todooo
         all_trajectories = np.stack(all_trajectories)  # shape: (N, T_sampled, C, X)
         return all_trajectories
     elif pde == "Kolmogorov":
@@ -101,8 +99,6 @@ def generate_dataset(pde: str,
             print("grid_size (should output (100, 100)) :", flow.grid_size)
             flow.Re = Re
             flow.k = 4
-
-            # grid = flow.create_fft_mesh()
             # Initialize state in Fourier space
             omega_0 = flow.initialize_state()
 
@@ -113,24 +109,16 @@ def generate_dataset(pde: str,
             _, trajectory_real = transient.iterative_func(
                 step_fn, omega_0, total_steps, step_to_save, ignore_intermediate_steps=True)
             print("trajectory shape (should be (T_sampled, 100, 100)):", trajectory_real.shape)
-            # trajectory tiene shape: (T_sampled, X, Y)
-            # Lo convertimos a shape (T_sampled, 1, X*Y)
-            # trajectory = jnp.reshape(trajectory, (trajectory.shape[0], 1, -1))  # (T_sampled, C=1, X)
-            # trajectory_real = jnp.fft.irfftn(omega_hat, s=(Nx, Ny), axes=(0, 1))
             trajectory = np.array(trajectory_real)  # shape: (T_sampled, X, Y) and changed from jnp to np
-            trajectory = np.expand_dims(trajectory, axis=1)  # añade canal C=1 en dim 1
+            trajectory = np.expand_dims(trajectory, axis=1)  # add channel dimension
             
             all_trajectories.append(trajectory) 
             print("Shape before stacking (Should be (T_sampled, 1, X, Y)):", trajectory.shape)
-        # Convertimos la lista a array
-        # all_trajectories = np.stack(all_trajectories)  # shape: (N, T_sampled, C, X, Y)
-        # all_trajectories = jax.device_get(all_trajectories)  # Convert to JAX array if needed
-        # all_trajectories = np.array(all_trajectories)  # Ensure it's a numpy array
-        # Convierte todo a NumPy en CPU ANTES de apilar
+        # Convert all toa NumPyrray before stacking
         all_trajectories = [np.array(jax.device_get(traj)) for traj in all_trajectories]
         all_trajectories = np.stack(all_trajectories)
-        print(type(all_trajectories))  # debe decir <class 'numpy.ndarray'>
-        print(all_trajectories.shape)  # y la forma esperada (N, T, 1, X, Y)
+        print(type(all_trajectories))  
+        print(all_trajectories.shape)  # (N, T, 1, X, Y)
 
         return all_trajectories
     else:

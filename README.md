@@ -2,15 +2,20 @@
 
 ## Description
 
-This project enables the generation of synthetic datasets for one-, two-, and three-dimensional partial differential equations (PDEs) using fully customizable parameters. Currently, it supports two foundational PDEs: the **Burgers equation** and the **Kuramoto–Sivashinsky (KS) equation**, both of which are known for exhibiting rich spatiotemporal behaviors such as chaos, shock development, and pattern formation.
+This project enables the generation of synthetic datasets for one-, two-, and three-dimensional partial differential equations (PDEs) using fully customizable parameters. Currently, for all tre-dimensions, it supports two foundational PDEs: the **Burgers equation** and the **Kuramoto–Sivashinsky (KS) equation**, both of which are known for exhibiting rich spatiotemporal behaviors such as chaos, shock development, and pattern formation.
 
 The **Burgers equation** is a prototypical model for studying turbulence, nonlinear wave propagation, and shock dynamics. It also serves as a simplified analog of the Navier–Stokes equations, making it a valuable testbed for numerical methods. The **Kuramoto–Sivashinsky equation**, on the other hand, captures key features of chaotic and unstable dynamics, making it ideal for benchmarking surrogate models and forecasting algorithms.
+
+For 2d it also solves the PDE Kolmogorov Equations that are a set of partial differential equations that play a crucial role in the field of stochastic processes. The solver used in this case was: https://github.com/smokbel/Controlling-Kolmogorov-Flow.
 
 By generating high-resolution datasets from these equations, this tool provides a foundation for research in scientific machine learning, data-driven modeling, and numerical analysis of nonlinear systems.
 
 > GitHub repository: [https://github.com/ines-lang/pde-solver](https://github.com/ines-lang/pde-solver)
 
 ---
+## Data
+
+The data that is obtained as an output can be found here: https://huggingface.co/datasets/isuarez/pde_collection.
 
 ## File Structure
 
