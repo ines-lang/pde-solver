@@ -52,14 +52,14 @@ plotted_sim : int
     Number of simulations to plot
 """
 
-pde = "KuramotoSivashinskyConservative" # options: KuramotoSivashinskyConservative (ks)
+pde = "KortewegDeVries" # options: KuramotoSivashinskyConservative (ks), Burgers, KortewegDeVries
 num_spatial_dims = 1 
 ic = "RandomTruncatedFourierSeries" # options: 'RandomTruncatedFourierSeries', 'GaussianRandomField'
 bc = None
 
 x_domain_extent = 100.0
 num_points = 200 
-dt_solver = 0.1
+dt_solver = 0.01
 t_end = 1000.0 
 save_freq = 1 
 simulations = 50
@@ -118,7 +118,7 @@ selected_simulations = random.sample(range(len(seed_list)), plotted_sim)
 for n_sim in selected_simulations:
     seed = seed_list[n_sim]
     plt.imshow(all_trajectories[n_sim, :, 0, :].T, # first simulation, channel 0
-            aspect='auto', cmap='RdBu', vmin=-2, vmax=2, origin="lower")
+            aspect='auto', cmap='RdBu', vmin=-4, vmax=4, origin="lower") # changed the values due to running datatset_stats.py on the dataset
     plt.xlabel("Time")
     plt.ylabel("Space")
     plt.title(f"{ic} - seed {seed}")

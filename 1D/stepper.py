@@ -65,5 +65,33 @@ def generate_dataset(pde: str,
             all_trajectories.append(sampled_traj)
         all_trajectories = jnp.stack(all_trajectories)  # shape: (N, T_sampled, C, X)
         return all_trajectories
+    elif pde == "KortewegDeVries":
+        burgers_class = getattr(ex.stepper, pde)
+        burgers_stepper = burgers_class(
+            num_spatial_dims=num_spatial_dims, domain_extent=x_domain_extent,
+            num_points=num_points, dt=dt_solver,
+            )
+        all_trajectories = []
+        for seed in seed_list:
+            key = jax.random.PRNGKey(seed)
+            # Dynamically get the initial condition class from the module
+            ic_class = getattr(ex.ic, ic)
+            # Define common keyword arguments for all initial condition classes
+            common_kwargs = {
+                "num_spatial_dims": num_spatial_dims,
+            }
+            # Add class-specific arguments if applicable
+            if ic == "RandomTruncatedFourierSeries":
+                common_kwargs["cutoff"] = 5  
+            # Instantiate the initial condition generator
+            ic_instance = ic_class(**common_kwargs)
+            # Generate the initial condition with additional parameters
+            u_0 = ic_instance(num_points=num_points, key=key)
+            
+            trajectories = ex.rollout(burgers_stepper, t_end, include_init=True)(u_0)
+            sampled_traj = trajectories[::save_freq]
+            all_trajectories.append(sampled_traj)
+        all_trajectories = jnp.stack(all_trajectories)  # shape: (N, T_sampled, C, X)
+        return all_trajectories
     else:
         raise ValueError(f"PDE '{pde}' not implemented.")
