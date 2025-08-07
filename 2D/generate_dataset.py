@@ -61,18 +61,19 @@ plotted_sim : int
     Number of simulations to plot
 """
 
-pde = "Kolmogorov" # options: KuramotoSivashinsky (ks), Burgers, Kolmogorov
+pde = "KortewegDeVries" # options: KuramotoSivashinsky (ks), Burgers, Kolmogorov, KortewegDeVries
 num_spatial_dims = 2
-ic = "RandomSpectralVorticityField" # options: 'RandomTruncatedFourierSeries'
+ic = "RandomTruncatedFourierSeries" # options: 'RandomTruncatedFourierSeries', 'RandomSpectralVorticityField'
 bc = None
 
 x_domain_extent = 100.0
 y_domain_extent = 100.0 
+num_points = 200 
 dt_solver = 0.001
-t_end = 100.0 
-save_freq = 100
-simulations = 1
-plotted_sim = 1
+t_end = 1000.0 
+save_freq = 1
+simulations = 50
+plotted_sim = 10
 
 # For Burgers equation, set viscosity
 nu = 0.1
@@ -90,7 +91,6 @@ all_trajectories = generate_dataset(
     ic=ic,
     bc=bc,
     x_domain_extent=x_domain_extent,
-    y_domain_extent=y_domain_extent,
     num_points=num_points,  
     dt_solver=dt_solver,
     t_end=t_end,
@@ -145,7 +145,7 @@ for n_sim in selected_simulations:
 
         fig, ax = plt.subplots(figsize=(10, 10))
         im = ax.imshow(u_component[0].T, cmap='RdBu', origin='lower', extent=extent,
-                    vmin=-2, vmax=2, aspect='auto')
+                    vmin=-28, vmax=28, aspect='auto')
         cbar = fig.colorbar(im, ax=ax)
         cbar.set_label("u(x, t)")
 

@@ -1,0 +1,2 @@
+Right now the solutions explode for some reason when approaching the end of the simulation when working with t_end=1000. 
+Also the min and max from the plots are not the ones of the data (as with exploding solutions we are not able to get the real min and max of the dataset.h5 file)

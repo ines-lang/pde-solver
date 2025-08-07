@@ -66,8 +66,8 @@ def generate_dataset(pde: str,
         all_trajectories = jnp.stack(all_trajectories)  # shape: (N, T_sampled, C, X)
         return all_trajectories
     elif pde == "KortewegDeVries":
-        burgers_class = getattr(ex.stepper, pde)
-        burgers_stepper = burgers_class(
+        kdv_class = getattr(ex.stepper, pde)
+        kdv_stepper = kdv_class(
             num_spatial_dims=num_spatial_dims, domain_extent=x_domain_extent,
             num_points=num_points, dt=dt_solver,
             )
@@ -88,7 +88,7 @@ def generate_dataset(pde: str,
             # Generate the initial condition with additional parameters
             u_0 = ic_instance(num_points=num_points, key=key)
             
-            trajectories = ex.rollout(burgers_stepper, t_end, include_init=True)(u_0)
+            trajectories = ex.rollout(kdv_stepper, t_end, include_init=True)(u_0)
             sampled_traj = trajectories[::save_freq]
             all_trajectories.append(sampled_traj)
         all_trajectories = jnp.stack(all_trajectories)  # shape: (N, T_sampled, C, X)

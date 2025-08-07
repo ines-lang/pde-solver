@@ -1,3 +1,4 @@
+.gitignore
 idea_centralized/
 __pycache__/
 1D/exponax/
@@ -6,5 +7,4 @@ __pycache__/
 *.h5
 **/plots/
 **/plots_3d/
-Kolmogorov/
 2D/kolmogorov_flow/
