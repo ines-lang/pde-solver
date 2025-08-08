@@ -8,11 +8,11 @@
       "x_domain_extent": 100.0,
       "y_domain_extent": 100.0,
       "z_domain_extent": 100.0,
-      "dt_solver": 0.1,
+      "dt_solver": 0.0001,
       "t_end": 100.0,
       "save_freq": 1,
-      "simulations": 3,
-      "plotted_sim": 1,
+      "simulations": 5,
+      "plotted_sim": 5,
       "ic": "RandomTruncatedFourierSeries",
       "bc": "None",
       "include_init": true
@@ -51,10 +51,10 @@
     },
   
     "dataset_global_statistics": {
-      "mean": nan,
-      "std": nan,
-      "min": inf,
-      "max": -inf
+      "mean": 0.000000,
+      "std": 3.471332,
+      "min": -15.732433,
+      "max": 16.369047
     }
     
   }

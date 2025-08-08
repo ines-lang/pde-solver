@@ -15,17 +15,17 @@ import kolmogorov_flow.Controlling_Kolmogorov_Flow.equations.base as base
 import kolmogorov_flow.Controlling_Kolmogorov_Flow.equations.utils as utils 
 
 def generate_dataset(pde: str,
-                      ic: str, 
-                      bc: callable, 
-                      num_spatial_dims: int,
-                      x_domain_extent: float,
-                      num_points: int,
-                      dt_solver: float, 
-                      t_end: float,
-                      save_freq: int, 
-                      nu: float,
-                      Re: float,
-                      seed_list:List):
+                     ic: str, 
+                     bc: callable, 
+                     num_spatial_dims: int,
+                     x_domain_extent: float,
+                     num_points: int,
+                     dt_solver: float, 
+                     t_end: float,
+                     save_freq: int, 
+                     nu: float,
+                     Re: float,
+                     seed_list:List):
     
     if pde == "KuramotoSivashinsky":
         ks_class = getattr(ex.stepper, pde)
@@ -85,6 +85,7 @@ def generate_dataset(pde: str,
             all_trajectories.append(sampled_traj)
         all_trajectories = np.stack(all_trajectories)  # shape: (N, T_sampled, C, X)
         return all_trajectories
+    
     elif pde == "KortewegDeVries":
         kdv_class = getattr(ex.stepper, pde)
         kdv_stepper = kdv_class(
@@ -128,9 +129,8 @@ def generate_dataset(pde: str,
     elif pde == "Kolmogorov":
         dt = dt_solver
         end_time = t_end
-        save_time = save_freq
-        total_steps = int(end_time // dt)
-        step_to_save = int(save_time // dt)
+        total_steps = int(end_time / dt) 
+        step_to_save = save_freq
 
         all_trajectories = []
 
@@ -148,10 +148,13 @@ def generate_dataset(pde: str,
             # Run simulation and recover real-space vorticity
             _, trajectory_real = transient.iterative_func(
                 step_fn, omega_0, total_steps, step_to_save, ignore_intermediate_steps=True)
+            # solving the save_freq issue
+            trajectory_real = np.array(jax.device_get(trajectory_real))  # transfer entire array at once
+            trajectory_real = trajectory_real[::save_freq]  # then slice in NumPy (fast)
             print("trajectory shape (should be (T_sampled, 100, 100)):", trajectory_real.shape)
+
             trajectory = np.array(trajectory_real)  # shape: (T_sampled, X, Y) and changed from jnp to np
             trajectory = np.expand_dims(trajectory, axis=1)  # add channel dimension
-            
             all_trajectories.append(trajectory) 
             print("Shape before stacking (Should be (T_sampled, 1, X, Y)):", trajectory.shape)
         # Convert all toa NumPyrray before stacking

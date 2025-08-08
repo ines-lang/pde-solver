@@ -57,7 +57,7 @@ plotted_sim : int
     Number of simulations to plot
 """
 
-pde = "Burgers" # options: KuramotoSivashinsky (ks), Burgers
+pde = "KuramotoSivashinsky" # options: 'KuramotoSivashinsky', 'Burgers', 'KortewegDeVries'
 num_spatial_dims = 3
 ic = "RandomTruncatedFourierSeries" # options: 'RandomTruncatedFourierSeries'
 bc = None
@@ -66,11 +66,11 @@ x_domain_extent = 100.0
 y_domain_extent = 100.0 
 z_domain_extent = 100.0 
 num_points = 100
-dt_solver = 0.001
+dt_solver = 0.0001
 t_end = 100.0 
-save_freq = 1 
-simulations = 3
-plotted_sim = 1
+save_freq = 1
+simulations = 5
+plotted_sim = 5
 
 # For Burgers equation, set viscosity
 nu = 0.1
@@ -86,8 +86,6 @@ all_trajectories = generate_dataset(
     ic=ic,
     bc=bc,
     x_domain_extent=x_domain_extent,
-    y_domain_extent=y_domain_extent,
-    z_domain_extent=z_domain_extent,
     num_points=num_points,  
     dt_solver=dt_solver,
     t_end=t_end,
@@ -144,17 +142,17 @@ for n_sim in selected_simulations:
 
         fig, ax = plt.subplots(figsize=(8, 6))
         im = ax.imshow(slice_sequence[0].T, cmap='RdBu', origin='lower',
-                       extent=extent, vmin=-12, vmax=12, aspect='auto')
+                       extent=extent, vmin=-15, vmax=15, aspect='auto')
 
         cbar = fig.colorbar(im, ax=ax)
         cbar.set_label("u(x, y, z_center)")
-        title = ax.set_title(f"{ic} – seed {seed} – channel {ch} – t = 0")
+        title = ax.set_title(f"{ic} - seed {seed} - channel {ch} - t = 0")
         ax.set_xlabel("x")
         ax.set_ylabel("y")
 
         def update(t_idx):
             im.set_array(slice_sequence[t_idx].T)
-            title.set_text(f"{ic} – seed {seed} – channel {ch} – t = {t_idx}")
+            title.set_text(f"{ic} - seed {seed} - channel {ch} - t = {t_idx}")
             return im, title
 
         skip = 2
@@ -162,7 +160,7 @@ for n_sim in selected_simulations:
         ani = animation.FuncAnimation(fig, update, frames=frames, blit=False)
 
         video_path = os.path.join(plots_path, f"center_slice_seed_{seed}_channel_{ch}.mp4")
-        ani.save(video_path, writer='ffmpeg', fps=30)
+        ani.save(video_path, writer='ffmpeg', fps=10)
         print(f"Animation saved at {video_path}")
 
         plt.close(fig)

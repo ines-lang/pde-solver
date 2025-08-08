@@ -10,7 +10,7 @@
       "dt_solver": 0.001,
       "t_end": 100.0,
       "save_freq": 100,
-      "simulations": 1,
+      "simulations": 10,
       "plotted_sim": 1,
       "ic": "RandomSpectralVorticityField",
       "bc": "None",

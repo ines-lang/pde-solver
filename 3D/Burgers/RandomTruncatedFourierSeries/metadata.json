@@ -56,8 +56,8 @@
     "dataset_global_statistics": {
       "mean": 0,
       "std": 0,
-      "min": -15,
-      "max": 15
+      "min": -15.722012,
+      "max": 15.658135
     }
     
   }

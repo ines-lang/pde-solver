@@ -52,7 +52,7 @@ plotted_sim : int
     Number of simulations to plot
 """
 
-pde = "KortewegDeVries" # options: KuramotoSivashinskyConservative (ks), Burgers, KortewegDeVries
+pde = "KortewegDeVries" # options: 'KuramotoSivashinskyConservative', 'Burgers', 'KortewegDeVries'
 num_spatial_dims = 1 
 ic = "RandomTruncatedFourierSeries" # options: 'RandomTruncatedFourierSeries', 'GaussianRandomField'
 bc = None
@@ -101,7 +101,7 @@ with h5py.File(data_path, "w") as h5file:
     for sim_idx in range(len(seed_list)):
         seed = seed_list[sim_idx]
         u_xt = all_trajectories[sim_idx, :, :]  # 0 is valid as we have only one channel
-        dataset_name = f'velocity_{seed:03d}'
+        dataset_name = 'velocity_{:03d}'.format(seed)
         h5file.create_dataset(dataset_name, data=u_xt)  
     print(f"File created at {data_path}")
     def print_structure(name, obj):
@@ -123,5 +123,5 @@ for n_sim in selected_simulations:
     plt.ylabel("Space")
     plt.title(f"{ic} - seed {seed}")
     plt.show()
-    plt.savefig(os.path.join(plots_path, f"seed_{seed}.png"))
+    plt.savefig(os.path.join(plots_path, f"seed_{seed:02d}.png"))
     plt.close()

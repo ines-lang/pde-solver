@@ -61,19 +61,19 @@ plotted_sim : int
     Number of simulations to plot
 """
 
-pde = "KortewegDeVries" # options: KuramotoSivashinsky (ks), Burgers, Kolmogorov, KortewegDeVries
+pde = "Kolmogorov" # options: 'KuramotoSivashinsky', 'Burgers', 'Kolmogorov', 'KortewegDeVries'
 num_spatial_dims = 2
-ic = "RandomTruncatedFourierSeries" # options: 'RandomTruncatedFourierSeries', 'RandomSpectralVorticityField'
+ic = "RandomSpectralVorticityField" # options: 'RandomTruncatedFourierSeries', 'RandomSpectralVorticityField'
 bc = None
 
 x_domain_extent = 100.0
 y_domain_extent = 100.0 
-num_points = 200 
+num_points = 100
 dt_solver = 0.001
-t_end = 1000.0 
-save_freq = 1
-simulations = 50
-plotted_sim = 10
+t_end = 100.0 
+save_freq = 100
+simulations = 10
+plotted_sim = 1
 
 # For Burgers equation, set viscosity
 nu = 0.1
@@ -110,23 +110,44 @@ plots_path = os.path.join(base_dir, "plots")
 os.makedirs(plots_path, exist_ok=True)
 
 # Create the h5py file and save the dataset
+# with h5py.File(data_path, "w") as h5file:
+#     for sim_idx in range(len(seed_list)):
+#         sim_idx = int(sim_idx)  # Ensure sim_idx is an integer
+#         seed = seed_list[sim_idx]
+#         u_xt = all_trajectories[sim_idx, :, :, :]
+#         dataset_name = 'velocity_{:03d}'.format(seed)
+#         h5file.create_dataset(dataset_name, data=u_xt)  
+#     print(f"Dataset saved at {data_path}")
+#     def print_structure(name, obj):
+#         if isinstance(obj, h5py.Group):
+#             print(f"Group: {name}")
+#         elif isinstance(obj, h5py.Dataset):
+#             print(f"  Dataset: {name} - Shape: {obj.shape}, Dtype: {obj.dtype}")
+
+def print_structure(name, obj):
+    if isinstance(obj, h5py.Group):
+        print(f"Group: {name}")
+    elif isinstance(obj, h5py.Dataset):
+        print(f"  Dataset: {name} - Shape: {obj.shape}, Dtype: {obj.dtype}")
+
 with h5py.File(data_path, "w") as h5file:
-    for sim_idx in range(len(seed_list)):
-        sim_idx = int(sim_idx)  # Ensure sim_idx is an integer
-        seed = seed_list[sim_idx]
-        u_xt = all_trajectories[sim_idx, :, :, :]
-        dataset_name = f'velocity_{seed:03d}'
-        h5file.create_dataset(dataset_name, data=u_xt)  
-    print(f"Dataset saved at {data_path}")
-    def print_structure(name, obj):
-        if isinstance(obj, h5py.Group):
-            print(f"Group: {name}")
-        elif isinstance(obj, h5py.Dataset):
-            print(f"  Dataset: {name} - Shape: {obj.shape}, Dtype: {obj.dtype}")
+    for seed, u_xt in zip(seed_list, all_trajectories):
+        h5file.create_dataset(
+            f"velocity_{seed:03d}",
+            data=u_xt.astype(np.float32),
+            compression="gzip", compression_opts=4,
+            chunks=True
+        )
+print(f"Dataset saved at {data_path}")
+
+# Structure print phase
+with h5py.File(data_path, "r") as h5file:
+    h5file.visititems(print_structure)
 
 # ========================
 # Plot 2D animation
 # ========================
+print("Plotting 2D animations...")
 random.seed(time.time())
 selected_simulations = random.sample(range(len(seed_list)), plotted_sim)
 
@@ -167,6 +188,6 @@ for n_sim in selected_simulations:
         # Save the MP4
         video_path = os.path.join(plots_path, f"evolution_seed_{seed}_channel_{ch}.mp4")
         ani.save(video_path, writer='ffmpeg', fps=60)
-        print(f"Animation saved at {video_path} for seed {seed}, channel {ch}")
+        print(f"Animation saved at {video_path} for seed {seed:02d}, channel {ch}")
 
         plt.close(fig)

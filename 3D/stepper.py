@@ -88,5 +88,46 @@ def generate_dataset(pde: str,
         # using numpy
         all_trajectories = np.stack(all_trajectories)  # shape: (N, T_sampled, C, X)
         return all_trajectories
+    
+    elif pde == "KortewegDeVries":
+        kdv_class = getattr(ex.stepper, pde)
+        kdv_stepper = kdv_class(
+            num_spatial_dims=num_spatial_dims, 
+            domain_extent=x_domain_extent,
+            num_points=num_points, 
+            dt=dt_solver,
+            )
+        all_trajectories = []
+        for seed in seed_list:
+            key = jax.random.PRNGKey(seed)
+            ic_class = getattr(ex.ic, ic)
+            common_kwargs = {
+                "num_spatial_dims": num_spatial_dims,
+            }
+            # Add class-specific arguments if applicable
+            if ic == "RandomTruncatedFourierSeries":
+                common_kwargs["cutoff"] = 5
+            
+            ic_instance = ic_class(**common_kwargs)
+            # Generate the initial condition with additional parameters
+            key1, key2 = jax.random.split(key)
+
+            u_0_1 = ic_instance(num_points=num_points, key=key1)
+            u_0_2 = ic_instance(num_points=num_points, key=key2)
+
+            # Remove leading channel dim if present: (1, 200, 200) → (200, 200)
+            if u_0_1.ndim == 3 and u_0_1.shape[0] == 1:
+                u_0_1 = u_0_1[0]
+                u_0_2 = u_0_2[0]
+
+            # Stack into batch: (2, 200, 200)
+            u_0 = jnp.stack([u_0_1, u_0_2])
+
+            trajectories = ex.rollout(kdv_stepper, t_end, include_init=True)(u_0)
+            sampled_traj = trajectories[::save_freq]
+            all_trajectories.append(sampled_traj)
+        all_trajectories = np.stack(all_trajectories)  # shape: (N, T_sampled, C, X)
+        return all_trajectories
+    
     else:
         raise ValueError(f"PDE '{pde}' not implemented.")
