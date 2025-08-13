@@ -1,0 +1,24 @@
+# Ignore all dataset.h5 files
+**/dataset.h5
+
+# Ignore all contents of any 'plots' folder
+**/plots/
+
+# Ignore all contents of any 'plots_3d' folder
+**/plots_3d/
+
+# Ignore Python cache folders
+**/__pycache__/
+
+# 1D datasets
+1D/exponax/
+
+# 2D datasets
+2D/exponax/
+2D/kolmogorov_flow
+
+# 3D datasets
+3D/exponax/
+
+# Other
+idea_centralized/
