@@ -3,15 +3,15 @@
   
     "generate_dataset_py": {
       "num_spatial_dims": 2,
-      "num_points": 200,
+      "num_points": 100,
       "num_channels": 1,
       "x_domain_extent": 100.0,
       "y_domain_extent": 100.0,
-      "dt_solver": 0.001,
-      "t_end": 1000.0,
+      "dt_solver": 0.0001,
+      "t_end": 500.0,
       "save_freq": 1,
       "simulations": 50,
-      "plotted_sim": 10,
+      "plotted_sim": 2,
       "ic": "RandomTruncatedFourierSeries",
       "bc": "None",
       "include_init": true
@@ -53,11 +53,10 @@
     },
   
     "dataset_global_statistics": {
-      "mean": nan,
-      "std": nan,
-      "min": inf
-      ,
-      "max": -inf
+      "mean": -0.000429,
+      "std": 1.815735,
+      "min": -7.707728,
+      "max": 8.314766
     }
     
   }

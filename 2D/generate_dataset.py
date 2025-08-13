@@ -61,19 +61,19 @@ plotted_sim : int
     Number of simulations to plot
 """
 
-pde = "Kolmogorov" # options: 'KuramotoSivashinsky', 'Burgers', 'Kolmogorov', 'KortewegDeVries'
+pde = "KortewegDeVries" # options: 'KuramotoSivashinsky', 'Burgers', 'Kolmogorov', 'KortewegDeVries'
 num_spatial_dims = 2
-ic = "RandomSpectralVorticityField" # options: 'RandomTruncatedFourierSeries', 'RandomSpectralVorticityField'
+ic = "RandomTruncatedFourierSeries" # options: 'RandomTruncatedFourierSeries', 'RandomSpectralVorticityField'
 bc = None
 
 x_domain_extent = 100.0
 y_domain_extent = 100.0 
 num_points = 100
-dt_solver = 0.001
-t_end = 100.0 
-save_freq = 100
-simulations = 10
-plotted_sim = 1
+dt_solver = 0.0001
+t_end = 500.0 
+save_freq = 1
+simulations = 50
+plotted_sim = 10
 
 # For Burgers equation, set viscosity
 nu = 0.1
@@ -166,7 +166,7 @@ for n_sim in selected_simulations:
 
         fig, ax = plt.subplots(figsize=(10, 10))
         im = ax.imshow(u_component[0].T, cmap='RdBu', origin='lower', extent=extent,
-                    vmin=-28, vmax=28, aspect='auto')
+                    vmin=-7, vmax=7, aspect='auto')
         cbar = fig.colorbar(im, ax=ax)
         cbar.set_label("u(x, t)")
 
@@ -187,7 +187,7 @@ for n_sim in selected_simulations:
 
         # Save the MP4
         video_path = os.path.join(plots_path, f"evolution_seed_{seed}_channel_{ch}.mp4")
-        ani.save(video_path, writer='ffmpeg', fps=60)
+        ani.save(video_path, writer='ffmpeg', fps=20)
         print(f"Animation saved at {video_path} for seed {seed:02d}, channel {ch}")
 
         plt.close(fig)

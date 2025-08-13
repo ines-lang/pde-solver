@@ -57,7 +57,7 @@ plotted_sim : int
     Number of simulations to plot
 """
 
-pde = "KuramotoSivashinsky" # options: 'KuramotoSivashinsky', 'Burgers', 'KortewegDeVries'
+pde = "KortewegDeVries" # options: 'KuramotoSivashinsky', 'Burgers', 'KortewegDeVries'
 num_spatial_dims = 3
 ic = "RandomTruncatedFourierSeries" # options: 'RandomTruncatedFourierSeries'
 bc = None
