@@ -61,31 +61,31 @@ seed : int
     Random seed for reproducibility
 """
 
-pde = "KortewegDeVries" # options: 'KuramotoSivashinskyConservative', 'Burgers', 'KortewegDeVries'
+pde = "Burgers" # options: 'KuramotoSivashinskyConservative', 'KuramotoSivashinsky' (adds viscosity with nu), 'Burgers', 'KortewegDeVries'
 num_spatial_dims = 1 
 ic = "RandomTruncatedFourierSeries" # options: 'RandomTruncatedFourierSeries', 'GaussianRandomField'
 bc = None
 
 x_domain_extent = 64.0
-num_points = 100 
-dt_save = 0.01
-t_end = 100.0 
+num_points = 200 
+dt_save = 0.001
+t_end = 1000.0 
 save_freq = 1 
 
-nu = 0.1  # For Burgers and KortewegDeVries equations
+nu = [0.1]  # For Burgers and KortewegDeVries equations
 
-simulations = 2
-plotted_sim = 1
+simulations = 5
+plotted_sim = 5
 plot_sim = True
-stats = None
+stats = True
 seed = 42 
 
 # =========================================
-# GENERATE AND SAVE DATASET
+# GENERATE DATASET
 # =========================================
 seed_list = list(range(simulations)) 
 
-all_trajectories = generate_dataset(
+all_trajectories, ic_hashes = generate_dataset(
     pde=pde,
     num_spatial_dims=num_spatial_dims,
     ic=ic,
@@ -96,9 +96,15 @@ all_trajectories = generate_dataset(
     t_end=t_end,
     nu=nu,
     save_freq=save_freq,
-    seed_list=seed_list)
+    seed_list=seed_list, 
+    seed=seed)
+
 all_trajectories = jnp.stack(all_trajectories)
 print("Original shape:", all_trajectories.shape)
+
+# =========================================
+# SAVE DATASET
+# =========================================
 
 #  Directory dependant on the pde and initial condition
 base_dir = os.path.join(pde, ic)
@@ -108,19 +114,47 @@ data_path = os.path.join(base_dir, file_name)
 plots_path = os.path.join(base_dir, "plots")
 os.makedirs(plots_path, exist_ok=True)
 
-# Create the h5py file and save the dataset
+# Create the h5py file and save the dataset with groups
+
+# Function to determine group name based on PDE and its parameters
+def get_group_name(pde, seed, nu=None, ic_hash_val=None):
+    if pde == "Burgers":
+        for nu_val in nu:
+            return f"nu_{nu_val}_seed_{seed:03d}"
+    elif pde == "KuramotoSivashinskyConservative":
+        for nu_val in nu:
+            return f"nu_{nu_val}_seed_{seed:03d}"
+    elif pde == "KuramotoSivashinsky": # with viscosity
+        for nu_val in nu:
+            return f"nu_{nu_val}_seed_{seed:03d}"
+    elif pde == "KortewegDeVries":
+        for ic_val in ic_hash_val:
+            return f"ic_{ic_val}_seed_{seed:03d}"
+    else:
+        return f"seed_{seed:03d}"
+
+# Save to HDF5
 with h5py.File(data_path, "w") as h5file:
-    for sim_idx in range(len(seed_list)):
-        seed = seed_list[sim_idx]
-        u_xt = all_trajectories[sim_idx, :, :]  # 0 is valid as we have only one channel
-        dataset_name = 'velocity_{:03d}'.format(seed)
-        h5file.create_dataset(dataset_name, data=u_xt)  
+    for sim_idx, seed in enumerate(seed_list):
+        group_name = get_group_name(pde, seed, nu=nu, ic_hash_val=ic_hashes[sim_idx])
+        grp = h5file.create_group(group_name)
+        
+        # Save the main trajectory
+        u_xt = all_trajectories[sim_idx]
+        grp.create_dataset(f'velocity_{sim_idx:03d}', data=u_xt)
+        # Optional: add other fields
+        # grp.create_dataset("density", data=density_xt)
+
     print(f"File created at {data_path}")
+
+    # Optional: print structure
     def print_structure(name, obj):
         if isinstance(obj, h5py.Group):
             print(f"Group: {name}")
         elif isinstance(obj, h5py.Dataset):
             print(f"  Dataset: {name} - Shape: {obj.shape}, Dtype: {obj.dtype}")
+    
+    h5file.visititems(print_structure)
 
 # ========================
 # STADISTICS
@@ -128,7 +162,9 @@ with h5py.File(data_path, "w") as h5file:
 if stats:
     # Detect number of channels from first loaded dataset
     data = all_trajectories
-    num_channels = data.shape[2] # Channels are in the third position
+    print("Original shape:", data.shape)
+    num_channels = data.shape[1]
+    print("Detected num_channels:", num_channels)
 
     # Initialize accumulators (outside the loop)
     means = np.zeros(num_channels, dtype=np.float64)
@@ -139,7 +175,7 @@ if stats:
 
     # Iterate over simulations
     for sim_idx in range(data.shape[0]):
-        sim_data = data[sim_idx]  # shape: (T, X, channels)
+        sim_data = data[sim_idx]  # shape: (C, T, X)
 
         has_nan = np.isnan(data).any()
         has_inf = np.isinf(data).any()
@@ -180,11 +216,13 @@ if plot_sim:
     selected_simulations = random.sample(range(len(seed_list)), plotted_sim)
     for n_sim in selected_simulations:
         seed = seed_list[n_sim]
-        plt.imshow(all_trajectories[n_sim, :, 0, :].T, # first simulation, channel 0
-                aspect='auto', cmap='RdBu', vmin=-4, vmax=4, origin="lower") # changed the values due to running datatset_stats.py on the dataset
-        plt.xlabel("Time")
-        plt.ylabel("Space")
-        plt.title(f"{ic} - seed {seed}")
-        plt.show()
-        plt.savefig(os.path.join(plots_path, f"seed_{seed:02d}.png"))
-        plt.close()
+        for c in range(num_channels):
+            plt.imshow(all_trajectories[n_sim, c, :, :].T, 
+                    aspect='auto', cmap='RdBu', vmin=mins[c], vmax=maxs[c], origin="lower") # changed the values due to running datatset_stats.py on the dataset
+            plt.xlabel("Time")
+            plt.ylabel("Space")
+            plt.title(f"{ic} - channel {c} - seed {seed}")
+            plt.show()
+            plt.savefig(os.path.join(plots_path, f"seed_{seed:02d}_channel_{c}.png"))
+            plt.close()
+

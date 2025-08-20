@@ -1,6 +1,7 @@
 import jax
 import jax.numpy as jnp
 from typing import List
+import hashlib
 
 import exponax as ex
 from exponax.stepper import KuramotoSivashinskyConservative
@@ -16,27 +17,83 @@ def generate_dataset(pde: str,
                       dt_save: float, 
                       t_end: float,
                       save_freq: int, 
-                      nu: float,
-                      seed_list:List):
+                      nu: list,
+                      seed_list:List,
+                      seed: int):
     
     if pde == "KuramotoSivashinskyConservative":
         ks_class = getattr(ex.stepper, pde)
         ks_stepper = ks_class(
-            num_spatial_dims=num_spatial_dims, domain_extent=x_domain_extent,
-            num_points=num_points, dt=dt_save,
+            num_spatial_dims=num_spatial_dims, 
+            domain_extent=x_domain_extent,
+            num_points=num_points, 
+            dt=dt_save,
             )
         all_trajectories = []
         for seed in seed_list:
             key = jax.random.PRNGKey(seed)
+            # Dynamically get the initial condition class from the module
             ic_class = getattr(ex.ic, ic)
-            u_0 = ic_class(
-                num_spatial_dims=num_spatial_dims, cutoff=5, #only first 5 fourier modes used
-            )(num_points=num_points, key=key)
+            # Define common keyword arguments for all initial condition classes
+            common_kwargs = {
+                "num_spatial_dims": num_spatial_dims,
+            }
+            # Add class-specific arguments if applicable
+            if ic == "RandomTruncatedFourierSeries":
+                common_kwargs["cutoff"] = 5  
+            # Instantiate the initial condition generator
+            ic_instance = ic_class(**common_kwargs)
+            # Generate the initial condition with additional parameters
+            u_0 = ic_instance(num_points=num_points, key=key)
+            # u_0_squeeze = jnp.squeeze(u_0)  # removes all singleton axes = jnp.squeeze(u_0)  # removes all singleton axes
+            # Compute and store hash for grouping
             trajectories = ex.rollout(ks_stepper, t_end, include_init=True)(u_0)
             sampled_traj = trajectories[::save_freq]
             all_trajectories.append(sampled_traj)
         all_trajectories = jnp.stack(all_trajectories)  # shape: (N, T_sampled, C, X)
-        return all_trajectories
+        # Move channel dimension to position 1
+        all_trajectories = jnp.moveaxis(all_trajectories, -2, 1)  # (N, C, T, X)
+
+        ic_hashes = [f"sim_{i}" for i in range(len(all_trajectories))] # dummy hashes for each trajectory for consistency
+        return all_trajectories, ic_hashes
+    
+    if pde == "KuramotoSivashinsky":
+        nu_list = nu
+        all_trajectories = []
+        all_ic_hashes = []
+
+        for nu in nu_list:
+            ks_class = getattr(ex.stepper, pde)
+            ks_stepper = ks_class(
+                num_spatial_dims=num_spatial_dims,
+                domain_extent=x_domain_extent,
+                num_points=num_points,
+                dt=dt_save,
+                fourth_order_scale=nu,  # viscosity is represented by the fourth_order_scale
+            )
+
+            for seed in seed_list:
+                key = jax.random.PRNGKey(seed)
+                ic_class = getattr(ex.ic, ic)
+                ic_generator = ic_class(
+                    num_spatial_dims=num_spatial_dims,
+                    cutoff=5)
+                # generate IC
+                u_0 = ic_generator(
+                    key=key,
+                    num_points=num_points)
+                # store hash for reproducibility
+                all_ic_hashes.append(hash(u_0.tobytes()))
+                # rollout
+                trajectories = ex.rollout(ks_stepper, t_end, include_init=True)(u_0)
+                sampled_traj = trajectories[::save_freq]
+                all_trajectories.append(sampled_traj)
+            
+        all_trajectories = jnp.stack(all_trajectories)  # (N_seeds, T_sampled, C, X)
+        # Move channel dimension to position 1
+        all_trajectories = jnp.moveaxis(all_trajectories, -2, 1)  # (N_seeds, C, T, X)
+        return all_trajectories, all_ic_hashes
+
     elif pde == "Burgers":
         burgers_class = getattr(ex.stepper, pde)
         burgers_stepper = burgers_class(
@@ -64,14 +121,25 @@ def generate_dataset(pde: str,
             sampled_traj = trajectories[::save_freq]
             all_trajectories.append(sampled_traj)
         all_trajectories = jnp.stack(all_trajectories)  # shape: (N, T_sampled, C, X)
-        return all_trajectories
+        # Move channel dimension to position 1
+        all_trajectories = jnp.moveaxis(all_trajectories, -2, 1)  # (N, C, T, X)
+        ic_hashes = [f"sim_{i}" for i in range(len(all_trajectories))] # dummy hashes for each trajectory for consistency
+        return all_trajectories, ic_hashes
+    
     elif pde == "KortewegDeVries":
         kdv_class = getattr(ex.stepper, pde)
         kdv_stepper = kdv_class(
             num_spatial_dims=num_spatial_dims, domain_extent=x_domain_extent,
             num_points=num_points, dt=dt_save,
             )
+        
+        def ic_hash(u_0, length=8):
+            full_hash = hashlib.sha256(u_0.tobytes()).hexdigest()
+            return full_hash[:length]  # Return first 'length' characters of the hash
+        
         all_trajectories = []
+        ic_hashes = []  # store hash per trajectory
+        
         for seed in seed_list:
             key = jax.random.PRNGKey(seed)
             # Dynamically get the initial condition class from the module
@@ -87,11 +155,17 @@ def generate_dataset(pde: str,
             ic_instance = ic_class(**common_kwargs)
             # Generate the initial condition with additional parameters
             u_0 = ic_instance(num_points=num_points, key=key)
-            
+            u_0_squeeze = jnp.squeeze(u_0)  # removes all singleton axes = jnp.squeeze(u_0)  # removes all singleton axes
+            # Compute and store hash for grouping
+            ic_hashes.append(ic_hash(u_0_squeeze))  # removes all singleton axes))
+
             trajectories = ex.rollout(kdv_stepper, t_end, include_init=True)(u_0)
             sampled_traj = trajectories[::save_freq]
             all_trajectories.append(sampled_traj)
         all_trajectories = jnp.stack(all_trajectories)  # shape: (N, T_sampled, C, X)
-        return all_trajectories
+        # Move channel dimension to position 1
+        all_trajectories = jnp.moveaxis(all_trajectories, -2, 1)  # (N, C, T, X)
+        return all_trajectories, ic_hashes
+    
     else:
         raise ValueError(f"PDE '{pde}' not implemented.")
