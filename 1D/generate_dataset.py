@@ -67,15 +67,15 @@ ic = "RandomTruncatedFourierSeries" # options: 'RandomTruncatedFourierSeries', '
 bc = None
 
 x_domain_extent = 64.0
-num_points = 200 
+num_points = 100 
 dt_save = 0.1
 t_end = 1000.0 
 save_freq = 1 
 
-nu = [0.01, 0.1, 0.5]  # For Burgers and KortewegDeVries equations
+nu = [0, 0.01, 0.1, 0.5]  # For Burgers and KortewegDeVries equations
 
-simulations = 5
-plotted_sim = 5
+simulations = 10
+plotted_sim = 10
 plot_sim = True
 stats = True
 seed = 42 
@@ -117,36 +117,59 @@ os.makedirs(plots_path, exist_ok=True)
 # Create the h5py file and save the dataset with groups
 
 # Function to determine group name based on PDE and its parameters
-def get_group_name(pde, seed, nu=None, ic_hash_val=None):
+def get_group_name(pde, seed, nu_val=None, ic_val=None):
     if pde == "Burgers":
-        for nu_val in nu:
-            return f"nu_{nu_val:.3f}_seed_{seed:03d}"
+        return f"nu_{nu_val:.3f}_seed_{seed:03d}"
     elif pde == "KuramotoSivashinskyConservative":
-        for nu_val in nu:
-            return f"nu_{nu_val:.3f}_seed_{seed:03d}"
-    elif pde == "KuramotoSivashinsky": # with viscosity
-        for nu_val in nu:
-            return f"nu_{nu_val:.3f}_seed_{seed:03d}"
+        return f"seed_{seed:03d}"  # no viscosity
+    elif pde == "KuramotoSivashinsky":  # with viscosity
+        return f"nu_{nu_val:.3f}_seed_{seed:03d}"
     elif pde == "KortewegDeVries":
-        for ic_val in ic_hash_val:
-            return f"ic_{ic_val}_seed_{seed:03d}"
+        return f"ic_{ic_val}_seed_{seed:03d}"
     else:
         return f"seed_{seed:03d}"
+
 
 # Save to HDF5
 with h5py.File(data_path, "w") as h5file:
     idx = 0
-    for nu_val in nu:
+
+    if pde in ["Burgers", "KuramotoSivashinsky"]:
+        for nu_val in nu:   # only iterate nu if PDE actually has it
+            for sim_idx, seed in enumerate(seed_list):
+                group_name = get_group_name(pde, seed, nu_val=nu_val)
+                grp = h5file.create_group(group_name)
+                u_xt = all_trajectories[idx]
+                grp.create_dataset(f'velocity_{idx:03d}', data=u_xt)
+                idx += 1
+
+    elif pde == "KuramotoSivashinskyConservative":
         for sim_idx, seed in enumerate(seed_list):
-            group_name = f"nu_{nu_val:.3f}_seed_{seed:03d}"
+            group_name = get_group_name(pde, seed)
             grp = h5file.create_group(group_name)
-            u_xt = all_trajectories[idx]  # pick the right trajectory
+            u_xt = all_trajectories[idx]
             grp.create_dataset(f'velocity_{idx:03d}', data=u_xt)
             idx += 1
-            # Optional: add other fields
-            # grp.create_dataset("density", data=density_xt)
+
+    elif pde == "KortewegDeVries":
+        for ic_val in ic_hashes:
+            for sim_idx, seed in enumerate(seed_list):
+                group_name = get_group_name(pde, seed, ic_val=ic_val)
+                grp = h5file.create_group(group_name)
+                u_xt = all_trajectories[idx]
+                grp.create_dataset(f'velocity_{idx:03d}', data=u_xt)
+                idx += 1
+
+    else:
+        for sim_idx, seed in enumerate(seed_list):
+            group_name = get_group_name(pde, seed)
+            grp = h5file.create_group(group_name)
+            u_xt = all_trajectories[idx]
+            grp.create_dataset(f'velocity_{idx:03d}', data=u_xt)
+            idx += 1
 
     print(f"File created at {data_path}")
+
 
     # Optional: print structure
     def print_structure(name, obj):
@@ -213,16 +236,28 @@ if stats:
 # PLOT 1D ANIMATIONS
 # ========================
 
-sim_names = [f"nu_{nu_val:.3f}_seed_{s:03d}" for nu_val in nu for s in seed_list]
+sim_names = []
+if pde in ["Burgers", "KuramotoSivashinsky"]:
+    for nu_val in nu:
+        for s in seed_list:
+            sim_names.append(get_group_name(pde, s, nu_val=nu_val))
+elif pde == "KuramotoSivashinskyConservative":
+    for s in seed_list:
+        sim_names.append(get_group_name(pde, s))
+elif pde == "KortewegDeVries":
+    for ic_val in ic_hashes:
+        for s in seed_list:
+            sim_names.append(get_group_name(pde, s, ic_val=ic_val))
+else:
+    for s in seed_list:
+        sim_names.append(get_group_name(pde, s))
 
 if plot_sim:
     random.seed(seed)
     selected_simulations = random.sample(range(len(sim_names)), plotted_sim)
+    
     for n_sim in selected_simulations:
         sim_name = sim_names[n_sim]
-        parts = sim_name.split("_")
-        nu_val = float(parts[1])
-        seed_val = int(parts[3])
 
         for c in range(num_channels):
             plt.imshow(
@@ -235,9 +270,8 @@ if plot_sim:
             )
             plt.xlabel("Time")
             plt.ylabel("Space")
-            plt.title(f"{ic} - nu={nu_val:.3f} - channel {c} - seed {seed_val:03d}")
+            plt.title(f"{ic} - {sim_name} - channel {c}")
             plt.savefig(os.path.join(
-                plots_path, f"nu_{nu_val:.3f}_seed_{seed_val:03d}_channel_{c}.png"
-            ))
+                plots_path, f"{sim_name}_channel_{c}.png"))
             plt.show()
             plt.close()

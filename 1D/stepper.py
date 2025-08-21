@@ -27,7 +27,7 @@ def generate_dataset(pde: str,
             num_spatial_dims=num_spatial_dims, 
             domain_extent=x_domain_extent,
             num_points=num_points, 
-            dt=dt_save,
+            dt=dt_save
             )
         all_trajectories = []
         for seed in seed_list:
@@ -70,7 +70,7 @@ def generate_dataset(pde: str,
                 domain_extent=x_domain_extent,
                 num_points=num_points,
                 dt=dt_save,
-                fourth_term_scale=nu_val
+                second_order_scale = 1.0 - float(nu_val)
             )
 
             for seed in seed_list:
