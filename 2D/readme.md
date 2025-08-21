@@ -10,6 +10,7 @@
 TODO:
 - try adding another IC
 - Plots still has unfixed values of -2 and 2. Added at the metadata until solved.
+- Kolmogorov doesnt work now
 
 # Pseudo-Spectral Solver for the 2D Kolmogorov Flow
 

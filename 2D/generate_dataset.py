@@ -1,7 +1,4 @@
 import os
-import os
-os.environ["JAX_PLATFORM_NAME"] = "cpu"
-
 import h5py
 import exponax as ex
 import matplotlib.pyplot as plt
@@ -69,33 +66,34 @@ seed : int
     Random seed for reproducibility 
 """
 
-pde = "KortewegDeVries" # options: 'KuramotoSivashinsky', 'Burgers', 'Kolmogorov', 'KortewegDeVries'
+pde = "KuramotoSivashinsky" # options: 'KuramotoSivashinsky', 'Burgers', 'Kolmogorov', 'KortewegDeVries'
 num_spatial_dims = 2
 ic = "RandomTruncatedFourierSeries" # options: 'RandomTruncatedFourierSeries', 'RandomSpectralVorticityField'
 bc = None
 
-x_domain_extent = 100.0
-y_domain_extent = 100.0 
+x_domain_extent = 64.0
+y_domain_extent = 64.0 
 num_points = 100
 dt_save = 0.0001
 t_end = 500.0 
 save_freq = 1
 
-nu = 0.1  # For Burgers and KortewegDeVries equations
+nu = [0, 0.01, 0.1, 0.5]  # For Burgers and KortewegDeVries equations
+# todo implemnet Re as nu 
 Re = 250  # For Kolmogorov equation
 
-simulations = 5
+simulations = 1
 plotted_sim = 1
-plot_sim = None
+plot_sim = True
 stats = True
 seed = 42
 
 # =========================================
-# GENERATE AND SAVE DATASET
+# GENERATE DATASET
 # =========================================
 seed_list = list(range(simulations)) 
 
-all_trajectories = generate_dataset(
+all_trajectories, ic_hashes, trajectory_nus = generate_dataset(
     pde=pde,
     num_spatial_dims=num_spatial_dims,
     ic=ic,
@@ -107,9 +105,15 @@ all_trajectories = generate_dataset(
     nu=nu,
     Re=Re,
     save_freq=save_freq,
-    seed_list=seed_list)
+    seed_list=seed_list,
+    seed=seed)
+
 all_trajectories = jnp.stack(all_trajectories)
 print("Original shape:", all_trajectories.shape)
+
+# =========================================
+# SAVE DATASET
+# =========================================
 
 #  Directory dependant on the pde and initial condition
 base_dir = os.path.join(pde, ic)
@@ -119,39 +123,71 @@ data_path = os.path.join(base_dir, file_name)
 plots_path = os.path.join(base_dir, "plots")
 os.makedirs(plots_path, exist_ok=True)
 
-# Create the h5py file and save the dataset
-# with h5py.File(data_path, "w") as h5file:
-#     for sim_idx in range(len(seed_list)):
-#         sim_idx = int(sim_idx)  # Ensure sim_idx is an integer
-#         seed = seed_list[sim_idx]
-#         u_xt = all_trajectories[sim_idx, :, :, :]
-#         dataset_name = 'velocity_{:03d}'.format(seed)
-#         h5file.create_dataset(dataset_name, data=u_xt)  
-#     print(f"Dataset saved at {data_path}")
-#     def print_structure(name, obj):
-#         if isinstance(obj, h5py.Group):
-#             print(f"Group: {name}")
-#         elif isinstance(obj, h5py.Dataset):
-#             print(f"  Dataset: {name} - Shape: {obj.shape}, Dtype: {obj.dtype}")
+# Create the h5py file and save the dataset with groups
 
-def print_structure(name, obj):
-    if isinstance(obj, h5py.Group):
-        print(f"Group: {name}")
-    elif isinstance(obj, h5py.Dataset):
-        print(f"  Dataset: {name} - Shape: {obj.shape}, Dtype: {obj.dtype}")
+# Function to determine group name based on PDE and its parameters
+def get_group_name(pde, seed, nu_val=None, ic_val=None):
+    if pde == "Burgers":
+        return f"nu_{nu_val:.3f}_seed_{seed:03d}"
+    elif pde == "KuramotoSivashinskyConservative":
+        return f"seed_{seed:03d}"  # no viscosity
+    elif pde == "KuramotoSivashinsky":  # with viscosity
+        return f"nu_{nu_val:.3f}_seed_{seed:03d}"
+    elif pde == "KortewegDeVries":
+        return f"ic_{ic_val}_seed_{seed:03d}"
+    elif pde == "Kolmogorov":
+        return f"Re_{Re:.3f}_seed_{seed:03d}" # check if :.3f
+    else:
+        return f"seed_{seed:03d}"
 
+# Save to HDF5
 with h5py.File(data_path, "w") as h5file:
-    for seed, u_xt in zip(seed_list, all_trajectories):
-        h5file.create_dataset(
-            f"velocity_{seed:03d}",
-            data=u_xt.astype(np.float32),
-            compression="gzip", compression_opts=4,
-            chunks=True
-        )
-print(f"Dataset saved at {data_path}")
+    idx = 0
 
-# Structure print phase
-with h5py.File(data_path, "r") as h5file:
+    if pde in ["Burgers", "KuramotoSivashinsky"]:
+        for nu_val in nu:   # only iterate nu if PDE actually has it
+            for sim_idx, seed in enumerate(seed_list):
+                group_name = get_group_name(pde, seed, nu_val=nu_val)
+                grp = h5file.create_group(group_name)
+                u_xt = all_trajectories[idx]
+                grp.create_dataset(f'velocity_{idx:03d}', data=u_xt)
+                idx += 1
+
+    elif pde == "KuramotoSivashinskyConservative":
+        for sim_idx, seed in enumerate(seed_list):
+            group_name = get_group_name(pde, seed)
+            grp = h5file.create_group(group_name)
+            u_xt = all_trajectories[idx]
+            grp.create_dataset(f'velocity_{idx:03d}', data=u_xt)
+            idx += 1
+
+    elif pde == "KortewegDeVries":
+        for ic_val in ic_hashes:
+            for sim_idx, seed in enumerate(seed_list):
+                group_name = get_group_name(pde, seed, ic_val=ic_val)
+                grp = h5file.create_group(group_name)
+                u_xt = all_trajectories[idx]
+                grp.create_dataset(f'velocity_{idx:03d}', data=u_xt)
+                idx += 1
+
+    else:
+        for sim_idx, seed in enumerate(seed_list):
+            group_name = get_group_name(pde, seed)
+            grp = h5file.create_group(group_name)
+            u_xt = all_trajectories[idx]
+            grp.create_dataset(f'velocity_{idx:03d}', data=u_xt)
+            idx += 1
+
+    print(f"File created at {data_path}")
+
+
+    # Optional: print structure
+    def print_structure(name, obj):
+        if isinstance(obj, h5py.Group):
+            print(f"Group: {name}")
+        elif isinstance(obj, h5py.Dataset):
+            print(f"  Dataset: {name} - Shape: {obj.shape}, Dtype: {obj.dtype}")
+    
     h5file.visititems(print_structure)
 
 # ========================
@@ -160,7 +196,9 @@ with h5py.File(data_path, "r") as h5file:
 if stats:
     # Detect number of channels from first loaded dataset
     data = all_trajectories
+    print("Original shape:", data.shape)
     num_channels = data.shape[2] # Channels are in the third position
+    print("Detected num_channels:", num_channels)
 
     # Initialize accumulators (outside the loop)
     means = np.zeros(num_channels, dtype=np.float64)
@@ -171,10 +209,10 @@ if stats:
 
     # Iterate over simulations
     for sim_idx in range(data.shape[0]):
-        sim_data = data[sim_idx]  # shape: (T, X, channels)
+        sim_data = data[sim_idx]  # shape: (C, T, X, Y)
 
-        has_nan = np.isnan(data).any()
-        has_inf = np.isinf(data).any()
+        has_nan = np.isnan(sim_data).any()
+        has_inf = np.isinf(sim_data).any()
         # Uncomment for debugging
         # print(f"min={np.min(data):.3e}, max={np.max(data):.3e}, has_nan={has_nan}, has_inf={has_inf}")
         if has_nan or has_inf:
@@ -182,7 +220,7 @@ if stats:
             continue
 
         for c in range(num_channels):
-            channel_data = sim_data[..., c].ravel()
+            channel_data = sim_data[c].ravel()  # flatten (T, X, Y)
             n = channel_data.size
 
             # Update min/max
@@ -207,47 +245,93 @@ if stats:
 # ========================
 # PLOT 2D ANIMATIONS
 # ========================
+
+sim_names = []
+if pde in ["Burgers", "KuramotoSivashinsky"]:
+    for nu_val in nu:
+        for s in seed_list:
+            sim_names.append(get_group_name(pde, s, nu_val=nu_val))
+elif pde == "KuramotoSivashinskyConservative":
+    for s in seed_list:
+        sim_names.append(get_group_name(pde, s))
+elif pde == "KortewegDeVries":
+    for ic_val in ic_hashes:
+        for s in seed_list:
+            sim_names.append(get_group_name(pde, s, ic_val=ic_val))
+else:
+    for s in seed_list:
+        sim_names.append(get_group_name(pde, s))
+
 if plot_sim:
     random.seed(seed)
-    selected_simulations = random.sample(range(len(seed_list)), plotted_sim)
-
+    selected_simulations = random.sample(range(len(sim_names)), plotted_sim)
+    
     for n_sim in selected_simulations:
-        seed = seed_list[n_sim]
-        u_xt = all_trajectories[n_sim]
-
-        num_channels = u_xt.shape[1]  # Number of channels (e.g., 1 for u, 2 for u and v in Burgers)
+        sim_name = sim_names[n_sim]
         
-        for ch in range(num_channels):  # loop over each channel
-            u_component = u_xt[:, ch]  # shape: (T, H, W)
+        parts = sim_name.split("_")
+        nu_val = float(parts[1])
+        seed_val = int(parts[3])
+
+         # pull the trajectory for this sim
+        u_xt = all_trajectories[n_sim]  # expected shape: (C, T, X) or (C, T, X, Y)
+
+        for c in range(num_channels):  # loop over each channel
+            u_component = u_xt[c]  # shape: (T, H, W)
 
             extent = (
                 0, x_domain_extent,
                 0, y_domain_extent)
 
             fig, ax = plt.subplots(figsize=(10, 10))
-            im = ax.imshow(u_component[0].T, cmap='RdBu', origin='lower', extent=extent,
-                        vmin=-7, vmax=7, aspect='auto')
+            init_frame = u_component[0].T  # transpose so indexing matches extent (Y,X) display
+            im = ax.imshow(
+                    init_frame,
+                    origin='lower',
+                    extent=extent,
+                    aspect='auto',
+                    cmap='RdBu',
+                    vmin=mins[c],
+                    vmax=maxs[c],
+            )
+
             cbar = fig.colorbar(im, ax=ax)
             cbar.set_label("u(x, t)")
 
-            title = ax.set_title(f"{ic} - seed {seed} - channel {ch} - t = 0")
+            # create title object so update can change it
+            title = ax.set_title(f"{ic} - nu={nu_val:.3f} - seed {seed_val:03d} - channel {c} - t=0")
             ax.set_xlabel("x")
             ax.set_ylabel("y")
 
-            # Animation update function
-            def update(t_idx):
-                frame = u_component[t_idx].T  # transpose so x is horizontal and y vertical
-                im.set_array(frame)
-                title.set_text(f"{ic} - seed {seed} - channel {ch} - t = {t_idx}")
-                return im, title
-            
-            skip = 2  # or compute it based on desired duration
-            frames = range(0, u_component.shape[0], skip)
-            ani = animation.FuncAnimation(fig, update, frames=frames, blit=False)
+            # Use closure factory to capture current variables (avoids late-binding bug)
+            def make_update(u_comp, im_obj, title_obj, seed_v, ch):
+                def update(t_idx):
+                    frame = u_comp[t_idx].T
+                    im_obj.set_array(frame)
+                    title_obj.set_text(f"{ic} - nu={nu_val:.3f} - seed {seed_v:03d} - channel {ch} - t={t_idx}")
+                    return (im_obj, title_obj)
+                return update
 
-            # Save the MP4
-            video_path = os.path.join(plots_path, f"evolution_seed_{seed}_channel_{ch}.mp4")
-            ani.save(video_path, writer='ffmpeg', fps=20)
-            print(f"Animation saved at {video_path} for seed {seed:02d}, channel {ch}")
+            update_fn = make_update(u_component, im, title, seed_val, c)
+
+            # choose frames with skipping if sequence is long
+            n_frames = u_component.shape[0]
+            skip = 1 if n_frames <= 400 else max(1, n_frames // 400)
+            frames = range(0, n_frames, skip)
+
+            ani = animation.FuncAnimation(fig, update_fn, frames=frames, blit=False)
+
+            # save animation (use FFMpegWriter). Ensure ffmpeg is installed.
+            out_video = os.path.join(plots_path, f"nu_{nu_val:.3f}_seed_{seed_val:03d}_channel_{c}.mp4")
+            try:
+                writer = animation.FFMpegWriter(fps=10)
+                ani.save(out_video, writer=writer)
+                print(f"Saved animation: {out_video}")
+            except Exception as e:
+                print(f"[Error] saving animation for {sim_name} channel {c}: {e}")
+                # fallback: save first frame as png
+                fallback_png = os.path.join(plots_path, f"nu_{nu_val:.3f}_seed_{seed_val:03d}_channel_{c}_frame0.png")
+                plt.imsave(fallback_png, init_frame, origin='lower')
+                print(f"Saved fallback frame: {fallback_png}")
 
             plt.close(fig)

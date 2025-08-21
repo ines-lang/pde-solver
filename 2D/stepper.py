@@ -3,6 +3,7 @@ import jax.numpy as jnp
 import numpy as np
 from typing import List
 import sys
+import hashlib
 
 import exponax as ex
 from exponax.stepper import KuramotoSivashinsky
@@ -25,66 +26,96 @@ def generate_dataset(pde: str,
                      save_freq: int, 
                      nu: float,
                      Re: float,
-                     seed_list:List):
+                     seed_list:List,
+                     seed: int):
     
     if pde == "KuramotoSivashinsky":
-        ks_class = getattr(ex.stepper, pde)
-        ks_stepper = ks_class(
-            num_spatial_dims=num_spatial_dims, domain_extent=x_domain_extent,
-            num_points=num_points, dt=dt_save,
-            )
+
         all_trajectories = []
-        for seed in seed_list:
-            key = jax.random.PRNGKey(seed)
-            ic_class = getattr(ex.ic, ic)
-            u_0 = ic_class(
-                num_spatial_dims=num_spatial_dims, cutoff=5, #only first 5 fourier modes used
-            )(num_points=num_points, key=key)
-            trajectories = ex.rollout(ks_stepper, t_end, include_init=True)(u_0)
-            sampled_traj = trajectories[::save_freq]
-            all_trajectories.append(sampled_traj)
-        all_trajectories = jnp.stack(all_trajectories)  # shape: (N, T_sampled, C, X)
-        return all_trajectories
+        all_ic_hashes = []
+
+        for nu_val in nu:
+            ks_class = getattr(ex.stepper, pde)
+            ks_stepper = ks_class(
+                num_spatial_dims=num_spatial_dims, 
+                domain_extent=x_domain_extent,
+                num_points=num_points, 
+                dt=dt_save,
+                second_order_scale = 1.0 - float(nu_val)
+                )
+
+            for seed in seed_list:
+                key = jax.random.PRNGKey(seed)
+                ic_class = getattr(ex.ic, ic)
+                u_0 = ic_class(
+                    num_spatial_dims=num_spatial_dims, 
+                    cutoff=5, #only first 5 fourier modes used
+                )(num_points=num_points, key=key)
+
+                # store hash for reproducibility
+                all_ic_hashes.append(hash(u_0.tobytes()))
+                # rollout
+                trajectories = ex.rollout(ks_stepper, t_end, include_init=True)(u_0)
+                sampled_traj = trajectories[::save_freq]
+                all_trajectories.append(sampled_traj)
+        print("Shape before stacking (Should be (N, T_sampled, C, X, Y)):", jnp.array(all_trajectories).shape)
+        
+        ic_hashes = [f"sim_{i}" for i in range(len(all_trajectories))] # dummy hashes for each trajectory for consistency
+        trajectory_nus = [f"sim_{i}" for i in range(len(all_trajectories))] # dummy variable for each trajectory for consistency
+        
+        return all_trajectories, ic_hashes, trajectory_nus
+    
     
     elif pde == "Burgers":
         burgers_class = getattr(ex.stepper, pde)
-        burgers_stepper = burgers_class(
-            num_spatial_dims=num_spatial_dims, 
-            domain_extent=x_domain_extent,
-            num_points=num_points, 
-            dt=dt_save,
-            )
+
         all_trajectories = []
-        for seed in seed_list:
-            key = jax.random.PRNGKey(seed)
-            ic_class = getattr(ex.ic, ic)
-            common_kwargs = {
-                "num_spatial_dims": num_spatial_dims,
-            }
-            # Add class-specific arguments if applicable
-            if ic == "RandomTruncatedFourierSeries":
-                common_kwargs["cutoff"] = 5
-            
-            ic_instance = ic_class(**common_kwargs)
-            # Generate the initial condition with additional parameters
-            key1, key2 = jax.random.split(key)
+        trajectory_nus = []  # NEW: track which nu was used
 
-            u_0_1 = ic_instance(num_points=num_points, key=key1)
-            u_0_2 = ic_instance(num_points=num_points, key=key2)
+        for nu_val in nu:
+            burgers_stepper = burgers_class(
+                num_spatial_dims=num_spatial_dims, 
+                domain_extent=x_domain_extent,
+                num_points=num_points, 
+                dt=dt_save,
+                diffusivity=nu_val  # Use nu_val for viscosity
+            )
+            for seed in seed_list:
+                key = jax.random.PRNGKey(seed)
+                ic_class = getattr(ex.ic, ic)
+                common_kwargs = {
+                    "num_spatial_dims": num_spatial_dims,
+                }
+                # Add class-specific arguments if applicable
+                if ic == "RandomTruncatedFourierSeries":
+                    common_kwargs["cutoff"] = 5
+                
+                ic_instance = ic_class(**common_kwargs)
+                # Generate the initial condition with additional parameters
+                key1, key2 = jax.random.split(key)
 
-            # Remove leading channel dim if present: (1, 200, 200) → (200, 200)
-            if u_0_1.ndim == 3 and u_0_1.shape[0] == 1:
-                u_0_1 = u_0_1[0]
-                u_0_2 = u_0_2[0]
+                u_0_1 = ic_instance(num_points=num_points, key=key1)
+                u_0_2 = ic_instance(num_points=num_points, key=key2)
 
-            # Stack into batch: (2, 200, 200)
-            u_0 = jnp.stack([u_0_1, u_0_2])
+                # Remove leading channel dim if present: (1, 200, 200) → (200, 200)
+                if u_0_1.ndim == 3 and u_0_1.shape[0] == 1:
+                    u_0_1 = u_0_1[0]
+                    u_0_2 = u_0_2[0]
 
-            trajectories = ex.rollout(burgers_stepper, t_end, include_init=True)(u_0)
-            sampled_traj = trajectories[::save_freq]
-            all_trajectories.append(sampled_traj)
-        all_trajectories = np.stack(all_trajectories)  # shape: (N, T_sampled, C, X)
-        return all_trajectories
+                # Stack into batch: (2, 200, 200)
+                u_0 = jnp.stack([u_0_1, u_0_2])
+
+                trajectories = ex.rollout(burgers_stepper, t_end, include_init=True)(u_0)
+                sampled_traj = trajectories[::save_freq]
+                all_trajectories.append(sampled_traj)
+                trajectory_nus.append(nu_val)  # save the nu
+
+        all_trajectories = jnp.stack(all_trajectories)  # shape: (N, T_sampled, C, X Y)
+        
+        ic_hashes = [f"sim_{i}" for i in range(len(all_trajectories))] # dummy hashes for each trajectory for consistency
+        trajectory_nus = [f"sim_{i}" for i in range(len(all_trajectories))] # dummy variable for each trajectory for consistency
+        
+        return all_trajectories, ic_hashes, trajectory_nus
     
     elif pde == "KortewegDeVries":
         kdv_class = getattr(ex.stepper, pde)
@@ -94,7 +125,14 @@ def generate_dataset(pde: str,
             num_points=num_points, 
             dt=dt_save,
             )
+        
+        def ic_hash(u_0, length=8):
+            full_hash = hashlib.sha256(u_0.tobytes()).hexdigest()
+            return full_hash[:length]  # Return first 'length' characters of the hash
+        
         all_trajectories = []
+        ic_hashes = []  # store hash per trajectory
+
         for seed in seed_list:
             key = jax.random.PRNGKey(seed)
             ic_class = getattr(ex.ic, ic)
@@ -123,8 +161,11 @@ def generate_dataset(pde: str,
             trajectories = ex.rollout(kdv_stepper, t_end, include_init=True)(u_0)
             sampled_traj = trajectories[::save_freq]
             all_trajectories.append(sampled_traj)
-        all_trajectories = np.stack(all_trajectories)  # shape: (N, T_sampled, C, X)
-        return all_trajectories
+        all_trajectories = jnp.stack(all_trajectories)  # shape: (N, T_sampled, C, X, Y)
+
+        trajectory_nus = [f"sim_{i}" for i in range(len(all_trajectories))] # dummy variable for each trajectory for consistency
+        
+        return all_trajectories, ic_hashes, trajectory_nus
     
     elif pde == "Kolmogorov":
         dt = dt_save
@@ -163,6 +204,10 @@ def generate_dataset(pde: str,
         print(type(all_trajectories))  
         print(all_trajectories.shape)  # (N, T, 1, X, Y)
 
-        return all_trajectories
+        ic_hashes = [f"sim_{i}" for i in range(len(all_trajectories))] # dummy hashes for each trajectory for consistency
+        trajectory_nus = [f"sim_{i}" for i in range(len(all_trajectories))] # dummy variable for each trajectory for consistency
+        
+        return all_trajectories, ic_hashes, trajectory_nus
+
     else:
         raise ValueError(f"PDE '{pde}' not implemented.")

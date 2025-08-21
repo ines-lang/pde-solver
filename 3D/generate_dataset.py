@@ -65,7 +65,7 @@ seed : int
     Random seed for reproducibility   
 """
 
-pde = "Burgers" # options: 'KuramotoSivashinsky', 'Burgers', 'KortewegDeVries'
+pde = "KortewegDeVries" # options: 'KuramotoSivashinsky', 'Burgers', 'KortewegDeVries'
 num_spatial_dims = 3
 ic = "RandomTruncatedFourierSeries" # options: 'RandomTruncatedFourierSeries'
 bc = None
@@ -74,24 +74,24 @@ x_domain_extent = 64.0
 y_domain_extent = 64.0 
 z_domain_extent = 64.0 
 num_points = 100
-dt_save = 0.01
+dt_save = 0.1
 t_end = 100.0 
 save_freq = 1
 
-nu = 0.1  # For Burgers and KortewegDeVries equations
+nu = [0, 0.01, 0.1, 0.5]  # For Burgers and KortewegDeVries equations
 
 simulations = 1
 plotted_sim = 1
-plot_sim = None
+plot_sim = False
 stats = True
 seed = 42
 
 # =========================================
-# GENERATE AND SAVE DATASET
+# GENERATE DATASET
 # =========================================
 seed_list = list(range(simulations)) 
 
-all_trajectories = generate_dataset(
+all_trajectories, ic_hashes, trajectory_nus = generate_dataset(
     pde=pde,
     num_spatial_dims=num_spatial_dims,
     ic=ic,
@@ -102,9 +102,15 @@ all_trajectories = generate_dataset(
     t_end=t_end,
     nu=nu,
     save_freq=save_freq,
-    seed_list=seed_list)
+    seed_list=seed_list,
+    seed=seed)
+
 all_trajectories = jnp.stack(all_trajectories)
 print("Original shape:", all_trajectories.shape)
+
+# =========================================
+# SAVE DATASET
+# =========================================
 
 #  Directory dependant on the pde and initial condition
 base_dir = os.path.join(pde, ic)
@@ -112,22 +118,72 @@ os.makedirs(base_dir, exist_ok=True)
 file_name = "dataset.h5"
 data_path = os.path.join(base_dir, file_name)
 plots_path = os.path.join(base_dir, "plots")
-plots_3d_path = os.path.join(base_dir, "plots_3d")
 os.makedirs(plots_path, exist_ok=True)
 
-# Create the h5py file and save the dataset
+# Create the h5py file and save the dataset with groups
+
+# Function to determine group name based on PDE and its parameters
+def get_group_name(pde, seed, nu_val=None, ic_val=None):
+    if pde == "Burgers":
+        return f"nu_{nu_val:.3f}_seed_{seed:03d}"
+    elif pde == "KuramotoSivashinsky":
+        return f"nu_{nu_val:.3f}_seed_{seed:03d}"
+    elif pde == "KortewegDeVries":
+        return f"ic_{ic_val}_seed_{seed:03d}"
+    elif pde == "Kolmogorov":
+        return f"Re_{nu_val:.3f}_seed_{seed:03d}"
+    else:
+        return f"seed_{seed:03d}"
+
+# Save to HDF5
 with h5py.File(data_path, "w") as h5file:
-    for sim_idx in range(len(seed_list)):
-        seed = seed_list[sim_idx]
-        u_xt = all_trajectories[sim_idx, :, :, :]  
-        dataset_name = f'velocity_{seed:03d}'
-        h5file.create_dataset(dataset_name, data=u_xt)  
-    print(f"Dataset saved at {data_path}")
+    idx = 0
+
+    if pde in ["Burgers", "KuramotoSivashinsky"]:
+        for nu_val in nu:   # only iterate nu if PDE actually has it
+            for sim_idx, seed in enumerate(seed_list):
+                group_name = get_group_name(pde, seed, nu_val=nu_val)
+                grp = h5file.create_group(group_name)
+                u_xt = all_trajectories[idx]
+                grp.create_dataset(f'velocity_{idx:03d}', data=u_xt)
+                idx += 1
+
+    elif pde == "KuramotoSivashinskyConservative":
+        for sim_idx, seed in enumerate(seed_list):
+            group_name = get_group_name(pde, seed)
+            grp = h5file.create_group(group_name)
+            u_xt = all_trajectories[idx]
+            grp.create_dataset(f'velocity_{idx:03d}', data=u_xt)
+            idx += 1
+
+    elif pde == "KortewegDeVries":
+        for ic_val in ic_hashes:
+            for sim_idx, seed in enumerate(seed_list):
+                group_name = get_group_name(pde, seed, ic_val=ic_val)
+                grp = h5file.create_group(group_name)
+                u_xt = all_trajectories[idx]
+                grp.create_dataset(f'velocity_{idx:03d}', data=u_xt)
+                idx += 1
+
+    else:
+        for sim_idx, seed in enumerate(seed_list):
+            group_name = get_group_name(pde, seed)
+            grp = h5file.create_group(group_name)
+            u_xt = all_trajectories[idx]
+            grp.create_dataset(f'velocity_{idx:03d}', data=u_xt)
+            idx += 1
+
+    print(f"File created at {data_path}")
+
+
+    # Optional: print structure
     def print_structure(name, obj):
         if isinstance(obj, h5py.Group):
             print(f"Group: {name}")
         elif isinstance(obj, h5py.Dataset):
             print(f"  Dataset: {name} - Shape: {obj.shape}, Dtype: {obj.dtype}")
+    
+    h5file.visititems(print_structure)
 
 # ========================
 # STADISTICS
@@ -135,7 +191,9 @@ with h5py.File(data_path, "w") as h5file:
 if stats:
     # Detect number of channels from first loaded dataset
     data = all_trajectories
+    print("Original shape:", data.shape)
     num_channels = data.shape[2] # Channels are in the third position
+    print("Detected num_channels:", num_channels)
 
     # Initialize accumulators (outside the loop)
     means = np.zeros(num_channels, dtype=np.float64)
@@ -182,18 +240,39 @@ if stats:
 # ========================
 # PLOT RENDER CENTER SLIDES
 # ========================
+
+sim_names = []
+if pde in ["Burgers", "KuramotoSivashinsky"]:
+    for nu_val in nu:
+        for s in seed_list:
+            sim_names.append(get_group_name(pde, s, nu_val=nu_val))
+elif pde == "KuramotoSivashinskyConservative":
+    for s in seed_list:
+        sim_names.append(get_group_name(pde, s))
+elif pde == "KortewegDeVries":
+    for ic_val in ic_hashes:
+        for s in seed_list:
+            sim_names.append(get_group_name(pde, s, ic_val=ic_val))
+else:
+    for s in seed_list:
+        sim_names.append(get_group_name(pde, s))
+
 if plot_sim:
     random.seed(seed)
-    selected_simulations = random.sample(range(len(seed_list)), plotted_sim)
+    selected_simulations = random.sample(range(len(sim_names)), plotted_sim)
 
     for n_sim in selected_simulations:
-        seed = seed_list[n_sim]
-        u_xt = all_trajectories[n_sim]  # shape: (T, C, X, Y, Z)
-
-        num_channels = u_xt.shape[1]
+        sim_name = sim_names[n_sim]
         
-        for ch in range(num_channels):
-            u_component = u_xt[:, ch]  # shape: (T, X, Y, Z)
+        parts = sim_name.split("_")
+        nu_val = float(parts[1])
+        seed_val = int(parts[3])
+
+         # pull the trajectory for this sim
+        u_xt = all_trajectories[n_sim]  # expected shape: (C, T, X) or (C, T, X, Y, Z)
+        
+        for c in range(num_channels):
+            u_component = u_xt[c]  # shape: (T, X, Y, Z)
             T, X, Y, Z = u_component.shape
 
             # Get central slice in Z direction
@@ -208,20 +287,20 @@ if plot_sim:
 
             cbar = fig.colorbar(im, ax=ax)
             cbar.set_label("u(x, y, z_center)")
-            title = ax.set_title(f"{ic} - seed {seed} - channel {ch} - t = 0")
+            title = ax.set_title(f"{ic} - seed {seed} - channel {c} - t = 0")
             ax.set_xlabel("x")
             ax.set_ylabel("y")
 
             def update(t_idx):
                 im.set_array(slice_sequence[t_idx].T)
-                title.set_text(f"{ic} - seed {seed} - channel {ch} - t = {t_idx}")
+                title.set_text(f"{ic} - seed {seed} - channel {c} - t = {t_idx}")
                 return im, title
 
             skip = 2
             frames = range(0, T, skip)
             ani = animation.FuncAnimation(fig, update, frames=frames, blit=False)
 
-            video_path = os.path.join(plots_path, f"center_slice_seed_{seed}_channel_{ch}.mp4")
+            video_path = os.path.join(plots_path, f"center_slice_seed_{seed}_channel_{c}.mp4")
             ani.save(video_path, writer='ffmpeg', fps=10)
             print(f"Animation saved at {video_path}")
 

@@ -145,8 +145,10 @@ def generate_dataset(pde: str,
     elif pde == "KortewegDeVries":
         kdv_class = getattr(ex.stepper, pde)
         kdv_stepper = kdv_class(
-            num_spatial_dims=num_spatial_dims, domain_extent=x_domain_extent,
-            num_points=num_points, dt=dt_save,
+            num_spatial_dims=num_spatial_dims, 
+            domain_extent=x_domain_extent,
+            num_points=num_points, 
+            dt=dt_save,
             )
         
         def ic_hash(u_0, length=8):
