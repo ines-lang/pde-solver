@@ -6,6 +6,7 @@
 - KS has one channel and Burgers two (for u and v)
 - Doesn´t work good yet for big numbers of simulations (order of magnitude where it works: 10). Exhausted.
 - Shape of all_trajectories is (N, T_sampled, C, X). It includes simulations.
+- In KdV there are 2 channels reffering to the 2 ICs created.
 
 TODO:
 - try adding another IC

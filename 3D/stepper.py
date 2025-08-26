@@ -51,7 +51,7 @@ def generate_dataset(pde: str,
                 sampled_traj = trajectories[::save_freq]
                 all_trajectories.append(sampled_traj)
         print("Shape before stacking (Should be (N, T_sampled, C, X, Y, Z)):", jnp.array(all_trajectories).shape)
-        all_trajectories = jnp.stack(all_trajectories)  # shape: (N, T_sampled, C, X, Z)
+        all_trajectories = np.stack(all_trajectories)  # shape: (N, T_sampled, C, X, Z)
         print("Shape after stacking (Should be (N, T_sampled, C, X, Y, Z)):", all_trajectories.shape)
 
         ic_hashes = [f"sim_{i}" for i in range(len(all_trajectories))] # dummy hashes for each trajectory for consistency
@@ -96,22 +96,22 @@ def generate_dataset(pde: str,
                     trajectories = np.array(ex.rollout(burgers_stepper, t_end, include_init=True)(u_0)) # added numpy to move rollout to CPU immediately
                     sampled_traj = trajectories[::save_freq]
                     # Debugging block
-                    print(f"seed {seed} → traj shape: {sampled_traj.shape}")
-                    print(f"min: {np.nanmin(sampled_traj):.3f}, max: {np.nanmax(sampled_traj):.3f}")
+                    # print(f"seed {seed} → traj shape: {sampled_traj.shape}")
+                    # print(f"min: {np.nanmin(sampled_traj):.3f}, max: {np.nanmax(sampled_traj):.3f}")
                     if np.isnan(sampled_traj).any() or np.isinf(sampled_traj).any():
                         raise ValueError("Trajectory contains NaNs or Infs")
                     all_trajectories.append(sampled_traj)
                 except Exception as e:
                     print(f"Failed to generate trajectory for seed {seed}: {e}")
                     continue  # Skip this seed and move on
-                print(f"Generated {len(all_trajectories)} valid trajectories out of {len(seed_list)} seeds.")
+                # print(f"Generated {len(all_trajectories)} valid trajectories out of {len(seed_list)} seeds.")
 
             if len(all_trajectories) == 0:
                 raise RuntimeError("No valid trajectories were generated.")
             
-        print("Shape before stacking (Should be (N, T_sampled, C, X, Y, Z)):", jnp.array(all_trajectories).shape)
+        # print("Shape before stacking (Should be (N, T_sampled, C, X, Y, Z)):", np.array(all_trajectories).shape)
         all_trajectories = np.stack(all_trajectories)  # shape: (N, T_sampled, C, X)
-        print("Shape after stacking (Should be (N, T_sampled, C, X, Y, Z)):", all_trajectories.shape)
+        # print("Shape after stacking (Should be (N, T_sampled, C, X, Y, Z)):", all_trajectories.shape)
 
         ic_hashes = [f"sim_{i}" for i in range(len(all_trajectories))]  # dummy hashes for each trajectory for consistency
         trajectory_nus = [f"sim_{i}" for i in range(len(all_trajectories))]  # dummy variable for each trajectory for consistency

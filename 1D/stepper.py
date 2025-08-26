@@ -1,5 +1,6 @@
 import jax
 import jax.numpy as jnp
+import numpy as np
 from typing import List
 import hashlib
 
@@ -52,7 +53,7 @@ def generate_dataset(pde: str,
             all_trajectories.append(sampled_traj)
         all_trajectories = jnp.stack(all_trajectories)  # shape: (N, T_sampled, C, X)
         # Move channel dimension to position 1
-        all_trajectories = jnp.moveaxis(all_trajectories, -2, 1)  # (N, C, T, X)
+        all_trajectories = np.moveaxis(all_trajectories, -2, 1)  # (N, C, T, X)
 
         ic_hashes = [f"sim_{i}" for i in range(len(all_trajectories))] # dummy hashes for each trajectory for consistency
         trajectory_nus = [f"sim_{i}" for i in range(len(all_trajectories))] # dummy variable for each trajectory for consistency
@@ -90,9 +91,9 @@ def generate_dataset(pde: str,
                 sampled_traj = trajectories[::save_freq]
                 all_trajectories.append(sampled_traj)
             
-        all_trajectories = jnp.stack(all_trajectories)  # (N_seeds, T_sampled, C, X)
+        all_trajectories = np.stack(all_trajectories)  # (N_seeds, T_sampled, C, X)
         # Move channel dimension to position 1
-        all_trajectories = jnp.moveaxis(all_trajectories, -2, 1)  # (N_seeds, C, T, X)
+        all_trajectories = np.moveaxis(all_trajectories, -2, 1)  # (N_seeds, C, T, X)
 
         trajectory_nus = [f"sim_{i}" for i in range(len(all_trajectories))] # dummy variable for each trajectory for consistency
 
@@ -133,9 +134,9 @@ def generate_dataset(pde: str,
                 all_trajectories.append(sampled_traj)
                 trajectory_nus.append(nu_val)  # save the nu
 
-        all_trajectories = jnp.stack(all_trajectories)  # shape: (N, T_sampled, C, X)
+        all_trajectories = np.stack(all_trajectories)  # shape: (N, T_sampled, C, X)
         # Move channel dimension to position 1
-        all_trajectories = jnp.moveaxis(all_trajectories, -2, 1)  # (N, C, T, X)
+        all_trajectories = np.moveaxis(all_trajectories, -2, 1)  # (N, C, T, X)
         
         ic_hashes = [f"sim_{i}" for i in range(len(all_trajectories))] # dummy hashes for each trajectory for consistency
         trajectory_nus = [f"sim_{i}" for i in range(len(all_trajectories))] # dummy variable for each trajectory for consistency
@@ -180,9 +181,9 @@ def generate_dataset(pde: str,
             trajectories = ex.rollout(kdv_stepper, t_end, include_init=True)(u_0)
             sampled_traj = trajectories[::save_freq]
             all_trajectories.append(sampled_traj)
-        all_trajectories = jnp.stack(all_trajectories)  # shape: (N, T_sampled, C, X)
+        all_trajectories = np.stack(all_trajectories)  # shape: (N, T_sampled, C, X)
         # Move channel dimension to position 1
-        all_trajectories = jnp.moveaxis(all_trajectories, -2, 1)  # (N, C, T, X)
+        all_trajectories = np.moveaxis(all_trajectories, -2, 1)  # (N, C, T, X)
 
         trajectory_nus = [f"sim_{i}" for i in range(len(all_trajectories))] # dummy variable for each trajectory for consistency
         

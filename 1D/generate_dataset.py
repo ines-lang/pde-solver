@@ -99,7 +99,7 @@ all_trajectories, ic_hashes, trajectory_nus = generate_dataset(
     seed_list=seed_list, 
     seed=seed)
 
-all_trajectories = jnp.stack(all_trajectories)
+all_trajectories = np.stack(all_trajectories) # changed it from jnp to np to use cpu instead of gpu
 print("Original shape:", all_trajectories.shape)
 
 # =========================================
@@ -119,58 +119,43 @@ os.makedirs(plots_path, exist_ok=True)
 # Function to determine group name based on PDE and its parameters
 def get_group_name(pde, seed, nu_val=None, ic_val=None):
     if pde == "Burgers":
-        return f"nu_{nu_val:.3f}_seed_{seed:03d}"
+        return f"nu_{nu_val:.3f}"
     elif pde == "KuramotoSivashinskyConservative":
         return f"seed_{seed:03d}"  # no viscosity
     elif pde == "KuramotoSivashinsky":  # with viscosity
-        return f"nu_{nu_val:.3f}_seed_{seed:03d}"
+        return f"nu_{nu_val:.3f}"
     elif pde == "KortewegDeVries":
-        return f"ic_{ic_val}_seed_{seed:03d}"
+        return f"ic_{ic_val}"
     else:
         return f"seed_{seed:03d}"
 
-
-# Save to HDF5
 with h5py.File(data_path, "w") as h5file:
     idx = 0
+    for nu_idx, nu_val in enumerate(nu): 
+        for seed in seed_list: # seed is now a label
+            # You pass the right parameter depending on PDE
+            group_name = get_group_name(
+                pde,
+                seed,
+                nu_val=nu_val,
+                ic_val=ic_hashes[idx] if "ic_hashes" in locals() else None,
+            )
 
-    if pde in ["Burgers", "KuramotoSivashinsky"]:
-        for nu_val in nu:   # only iterate nu if PDE actually has it
-            for sim_idx, seed in enumerate(seed_list):
-                group_name = get_group_name(pde, seed, nu_val=nu_val)
+            # Only create group if it doesn't exist
+            if group_name in h5file:
+                grp = h5file[group_name]
+            else:
                 grp = h5file.create_group(group_name)
-                u_xt = all_trajectories[idx]
-                grp.create_dataset(f'velocity_{idx:03d}', data=u_xt)
-                idx += 1
 
-    elif pde == "KuramotoSivashinskyConservative":
-        for sim_idx, seed in enumerate(seed_list):
-            group_name = get_group_name(pde, seed)
-            grp = h5file.create_group(group_name)
-            u_xt = all_trajectories[idx]
-            grp.create_dataset(f'velocity_{idx:03d}', data=u_xt)
-            idx += 1
+            # Save the trajectory
+            u_xt = all_trajectories[idx]  # shape (N, C, T, X, Y, Z)
+            grp.create_dataset(f"velocity_seed{seed:03d}", data=u_xt)
 
-    elif pde == "KortewegDeVries":
-        for ic_val in ic_hashes:
-            for sim_idx, seed in enumerate(seed_list):
-                group_name = get_group_name(pde, seed, ic_val=ic_val)
-                grp = h5file.create_group(group_name)
-                u_xt = all_trajectories[idx]
-                grp.create_dataset(f'velocity_{idx:03d}', data=u_xt)
-                idx += 1
-
-    else:
-        for sim_idx, seed in enumerate(seed_list):
-            group_name = get_group_name(pde, seed)
-            grp = h5file.create_group(group_name)
-            u_xt = all_trajectories[idx]
-            grp.create_dataset(f'velocity_{idx:03d}', data=u_xt)
             idx += 1
 
     print(f"File created at {data_path}")
 
-
+    
     # Optional: print structure
     def print_structure(name, obj):
         if isinstance(obj, h5py.Group):

@@ -110,7 +110,7 @@ def generate_dataset(pde: str,
                 all_trajectories.append(sampled_traj)
                 trajectory_nus.append(nu_val)  # save the nu
 
-        all_trajectories = jnp.stack(all_trajectories)  # shape: (N, T_sampled, C, X Y)
+        all_trajectories = np.stack(all_trajectories)  # shape: (N, T_sampled, C, X Y)
         
         ic_hashes = [f"sim_{i}" for i in range(len(all_trajectories))] # dummy hashes for each trajectory for consistency
         trajectory_nus = [f"sim_{i}" for i in range(len(all_trajectories))] # dummy variable for each trajectory for consistency
@@ -157,11 +157,13 @@ def generate_dataset(pde: str,
 
             # Stack into batch: (2, 200, 200)
             u_0 = jnp.stack([u_0_1, u_0_2])
+            # Compute and store hash
+            ic_hashes.append(ic_hash(u_0)) # it needs to be added
 
             trajectories = ex.rollout(kdv_stepper, t_end, include_init=True)(u_0)
             sampled_traj = trajectories[::save_freq]
             all_trajectories.append(sampled_traj)
-        all_trajectories = jnp.stack(all_trajectories)  # shape: (N, T_sampled, C, X, Y)
+        all_trajectories = np.stack(all_trajectories)  # shape: (N, T_sampled, C, X, Y)
 
         trajectory_nus = [f"sim_{i}" for i in range(len(all_trajectories))] # dummy variable for each trajectory for consistency
         
@@ -207,6 +209,9 @@ def generate_dataset(pde: str,
         ic_hashes = [f"sim_{i}" for i in range(len(all_trajectories))] # dummy hashes for each trajectory for consistency
         trajectory_nus = [f"sim_{i}" for i in range(len(all_trajectories))] # dummy variable for each trajectory for consistency
         
+        # print("Final all_trajectories shape:", np.array(all_trajectories).shape)
+        # print("len(ic_hashes):", len(ic_hashes))
+
         return all_trajectories, ic_hashes, trajectory_nus
 
     else:
