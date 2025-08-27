@@ -72,6 +72,12 @@ dt_save = 0.1
 t_end = 1000.0 
 save_freq = 1 
 
+''' What it implies:
+Total steps: n_steps = t_end / dt_save
+Output interval: dt_output = dt_save * save_freq
+Total saved frames: n_saved = n_steps / save_freq + 1
+'''
+
 nu = [0, 0.01, 0.1, 0.5]  # For Burgers and KortewegDeVries equations
 
 simulations = 10
@@ -131,28 +137,36 @@ def get_group_name(pde, seed, nu_val=None, ic_val=None):
 
 with h5py.File(data_path, "w") as h5file:
     idx = 0
-    for nu_idx, nu_val in enumerate(nu): 
-        for seed in seed_list: # seed is now a label
-            # You pass the right parameter depending on PDE
+   
+    if pde == "KortewegDeVries":
+        for seed in seed_list:
+            ic_val = ic_hashes[idx] if "ic_hashes" in locals() and idx < len(ic_hashes) else None
             group_name = get_group_name(
                 pde,
                 seed,
-                nu_val=nu_val,
-                ic_val=ic_hashes[idx] if "ic_hashes" in locals() else None,
+                ic_val=ic_val,   # use ic_hash for KdV
             )
-
-            # Only create group if it doesn't exist
-            if group_name in h5file:
-                grp = h5file[group_name]
-            else:
-                grp = h5file.create_group(group_name)
-
-            # Save the trajectory
-            u_xt = all_trajectories[idx]  # shape (N, C, T, X, Y, Z)
-            grp.create_dataset(f"velocity_seed{seed:03d}", data=u_xt)
-
+            u_xt = all_trajectories[idx]
+            grp = h5file.create_group(group_name)
+            grp.create_dataset(f"velocity_seed_{seed:03d}", data=u_xt)
             idx += 1
 
+    else:  # Burgers or Kuramoto-Sivashinsky // change to elif if adding more pdes
+        for nu_val in nu:
+            for seed in seed_list:
+                group_name = get_group_name(
+                    pde,
+                    seed,
+                    nu_val=nu_val,
+                )
+                u_xt = all_trajectories[idx]
+                if group_name in h5file:
+                    grp = h5file[group_name]
+                else:
+                    grp = h5file.create_group(group_name)
+                grp.create_dataset(f"velocity_seed_{seed:03d}", data=u_xt)
+                idx += 1
+    
     print(f"File created at {data_path}")
 
     

@@ -144,6 +144,7 @@ def generate_dataset(pde: str,
                 common_kwargs["cutoff"] = 5
             
             ic_instance = ic_class(**common_kwargs)
+            
             # Generate the initial condition with additional parameters
             key1, key2 = jax.random.split(key)
 
@@ -157,6 +158,7 @@ def generate_dataset(pde: str,
 
             # Stack into batch: (2, 200, 200)
             u_0 = jnp.stack([u_0_1, u_0_2])
+            
             # Compute and store hash
             ic_hashes.append(ic_hash(u_0)) # it needs to be added
 

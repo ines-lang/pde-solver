@@ -80,6 +80,12 @@ dt_save = 0.001
 t_end = 100.0 
 save_freq = 1
 
+''' What it implies:
+Total steps: n_steps = t_end / dt_save
+Output interval: dt_output = dt_save * save_freq
+Total saved frames: n_saved = n_steps / save_freq + 1
+'''
+
 nu = [0, 0.01, 0.1, 0.5]  # For Burgers and KortewegDeVries equations
 # todo implemnet Re as nu 
 Re = 250  # For Kolmogorov equation
@@ -131,8 +137,6 @@ os.makedirs(plots_path, exist_ok=True)
 def get_group_name(pde, seed, nu_val=None, ic_val=None, Re=None):
     if pde == "Burgers":
         return f"nu_{nu_val:.3f}"
-    elif pde == "KuramotoSivashinskyConservative":
-        return f"seed_{seed:03d}"  # no viscosity
     elif pde == "KuramotoSivashinsky":  # with viscosity
         return f"nu_{nu_val:.3f}"
     elif pde == "KortewegDeVries":
@@ -154,7 +158,7 @@ with h5py.File(data_path, "w") as h5file:
 
         for seed in seed_list:
             u_xt = all_trajectories[idx]
-            grp.create_dataset(f"velocity_seed{seed:03d}", data=u_xt)
+            grp.create_dataset(f"velocity_seed_{seed:03d}", data=u_xt)
             idx += 1
 
     elif pde == "KortewegDeVries":
@@ -167,7 +171,7 @@ with h5py.File(data_path, "w") as h5file:
             )
             u_xt = all_trajectories[idx]
             grp = h5file.create_group(group_name)
-            grp.create_dataset(f"velocity_seed{seed:03d}", data=u_xt)
+            grp.create_dataset(f"velocity_seed_{seed:03d}", data=u_xt)
             idx += 1
 
     else:  # Burgers or Kuramoto-Sivashinsky
@@ -183,7 +187,7 @@ with h5py.File(data_path, "w") as h5file:
                     grp = h5file[group_name]
                 else:
                     grp = h5file.create_group(group_name)
-                grp.create_dataset(f"velocity_seed{seed:03d}", data=u_xt)
+                grp.create_dataset(f"velocity_seed_{seed:03d}", data=u_xt)
                 idx += 1
 
     print(f"File created at {data_path}")
