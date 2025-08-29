@@ -22,7 +22,12 @@ def generate_dataset(pde: str,
                       seed_list:List,
                       seed: int):
     
+    all_trajectories = []
+    trajectory_nus = []
+    ic_hashes = []
+
     if pde == "KuramotoSivashinskyConservative":
+
         ks_class = getattr(ex.stepper, pde)
         ks_stepper = ks_class(
             num_spatial_dims=num_spatial_dims, 
@@ -30,7 +35,7 @@ def generate_dataset(pde: str,
             num_points=num_points, 
             dt=dt_save
             )
-        all_trajectories = []
+
         for seed in seed_list:
             key = jax.random.PRNGKey(seed)
             # Dynamically get the initial condition class from the module
@@ -51,18 +56,15 @@ def generate_dataset(pde: str,
             trajectories = ex.rollout(ks_stepper, t_end, include_init=True)(u_0)
             sampled_traj = trajectories[::save_freq]
             all_trajectories.append(sampled_traj)
+            trajectory_nus.append(nu_val)          # keep viscosity
+            ic_hashes.append(f"sim_{len(ic_hashes)}")  # dummy id
         all_trajectories = jnp.stack(all_trajectories)  # shape: (N, T_sampled, C, X)
         # Move channel dimension to position 1
         all_trajectories = np.moveaxis(all_trajectories, -2, 1)  # (N, C, T, X)
 
-        ic_hashes = [f"sim_{i}" for i in range(len(all_trajectories))] # dummy hashes for each trajectory for consistency
-        trajectory_nus = [f"sim_{i}" for i in range(len(all_trajectories))] # dummy variable for each trajectory for consistency
-        
         return all_trajectories, ic_hashes, trajectory_nus
     
     if pde == "KuramotoSivashinsky":
-        all_trajectories = []
-        all_ic_hashes = []
 
         for nu_val in nu:
             ks_class = getattr(ex.stepper, pde)
@@ -84,26 +86,23 @@ def generate_dataset(pde: str,
                 u_0 = ic_generator(
                     key=key,
                     num_points=num_points)
-                # store hash for reproducibility
-                all_ic_hashes.append(hash(u_0.tobytes()))
+
                 # rollout
                 trajectories = ex.rollout(ks_stepper, t_end, include_init=True)(u_0)
                 sampled_traj = trajectories[::save_freq]
                 all_trajectories.append(sampled_traj)
-            
+                trajectory_nus.append(nu_val)          # keep viscosity
+                ic_hashes.append(f"sim_{len(ic_hashes)}")  # dummy id
+
         all_trajectories = np.stack(all_trajectories)  # (N_seeds, T_sampled, C, X)
         # Move channel dimension to position 1
         all_trajectories = np.moveaxis(all_trajectories, -2, 1)  # (N_seeds, C, T, X)
 
-        trajectory_nus = [f"sim_{i}" for i in range(len(all_trajectories))] # dummy variable for each trajectory for consistency
-
-        return all_trajectories, all_ic_hashes, trajectory_nus
+        return all_trajectories, ic_hashes, trajectory_nus
     
     elif pde == "Burgers":
+        
         burgers_class = getattr(ex.stepper, pde)
-
-        all_trajectories = []
-        trajectory_nus = []  # NEW: track which nu was used
 
         for nu_val in nu:
             burgers_stepper = burgers_class(
@@ -141,13 +140,11 @@ def generate_dataset(pde: str,
                 sampled_traj = trajectories[::save_freq]
                 all_trajectories.append(sampled_traj)
                 trajectory_nus.append(nu_val)  # save the nu
+                ic_hashes.append(f"sim_{len(ic_hashes)}")  # dummy id
 
         all_trajectories = np.stack(all_trajectories)  # shape: (N, T_sampled, C, X)
         # Move channel dimension to position 1
         all_trajectories = np.moveaxis(all_trajectories, -2, 1)  # (N, C, T, X)
-        
-        ic_hashes = [f"sim_{i}" for i in range(len(all_trajectories))] # dummy hashes for each trajectory for consistency
-        trajectory_nus = [f"sim_{i}" for i in range(len(all_trajectories))] # dummy variable for each trajectory for consistency
         
         return all_trajectories, ic_hashes, trajectory_nus
     
@@ -163,9 +160,6 @@ def generate_dataset(pde: str,
         def ic_hash(u_0, length=8):
             full_hash = hashlib.sha256(u_0.tobytes()).hexdigest()
             return full_hash[:length]  # Return first 'length' characters of the hash
-        
-        all_trajectories = []
-        ic_hashes = []  # store hash per trajectory
         
         for seed in seed_list:
             key = jax.random.PRNGKey(seed)
@@ -198,12 +192,13 @@ def generate_dataset(pde: str,
             trajectories = ex.rollout(kdv_stepper, t_end, include_init=True)(u_0)
             sampled_traj = trajectories[::save_freq]
             all_trajectories.append(sampled_traj)
+
+            trajectory_nus.append(f"sim_{len(trajectory_nus)}")  # dummy id
+
             
         all_trajectories = np.stack(all_trajectories)  # shape: (N, T_sampled, C, X)
         # Move channel dimension to position 1
         all_trajectories = np.moveaxis(all_trajectories, -2, 1)  # (N, C, T, X)
-        
-        trajectory_nus = [f"sim_{i}" for i in range(len(all_trajectories))] # dummy variable for each trajectory for consistency
         
         return all_trajectories, ic_hashes, trajectory_nus
     

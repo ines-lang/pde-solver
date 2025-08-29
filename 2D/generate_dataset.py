@@ -21,7 +21,9 @@ pde : str
     PDE to solve. Options: 'KuramotoSivashinsky' (ks), 'Burgers'
 
 ic : str
-    Initial condition function. Options: 'RandomTruncatedFourierSeries'
+    Initial condition function. Options: 'RandomTruncatedFourierSeries', 'RandomSpectralVorticityField',
+    For Kolmogorov and Gray Scott you dont don’t need to pass an initial condition as it uses a fixed one.
+    'RandomTruncatedFourierSeries' is used for Burgers, KS and KdV equations.
 
 bc : callable
     Boundary condition. (Unused As JAX computes spatial derivatives using the Fast Fourier Transform (FFT)
@@ -68,17 +70,17 @@ seed : int
     Random seed for reproducibility 
 """
 
-pde = "Kolmogorov" # options: 'KuramotoSivashinsky', 'Burgers', 'Kolmogorov', 'KortewegDeVries'
+pde = "GrayScott" # options: 'KuramotoSivashinsky', 'Burgers', 'Kolmogorov', 'KortewegDeVries', 'GrayScott'
 num_spatial_dims = 2
-ic = "RandomSpectralVorticityField" # options: 'RandomTruncatedFourierSeries', 'RandomSpectralVorticityField'
+ic = "" # options: 'RandomTruncatedFourierSeries', 'RandomSpectralVorticityField', 
 bc = None
 
-x_domain_extent = 64.0
-y_domain_extent = 64.0 
-num_points = 100
-dt_save = 0.001
-t_end = 100.0 
-save_freq = 1
+x_domain_extent = 2.5
+y_domain_extent = 2.5
+num_points = 128
+dt_save = 1
+t_end = 5000.0 
+save_freq = 50
 
 ''' What it implies:
 Total steps: n_steps = t_end / dt_save
@@ -134,7 +136,7 @@ os.makedirs(plots_path, exist_ok=True)
 # Create the h5py file and save the dataset with groups
 
 # Function to determine group name based on PDE and its parameters
-def get_group_name(pde, seed, nu_val=None, ic_val=None, Re=None):
+def get_group_name(pde, seed, nu_val=None, ic_val=None, Re=None, feed=None, kill=None):
     if pde == "Burgers":
         return f"nu_{nu_val:.3f}"
     elif pde == "KuramotoSivashinsky":  # with viscosity
@@ -143,6 +145,8 @@ def get_group_name(pde, seed, nu_val=None, ic_val=None, Re=None):
         return f"ic_{ic_val}"
     elif pde == "Kolmogorov":
         return f"Re_{Re:.3f}" # add Re_val when introducing a list
+    elif pde == "GrayScott":
+        return f"feed_{feed:.3f}_kill_{kill:.3f}"
     else:
         return f"seed_{seed:03d}"
 
@@ -158,7 +162,7 @@ with h5py.File(data_path, "w") as h5file:
 
         for seed in seed_list:
             u_xt = all_trajectories[idx]
-            grp.create_dataset(f"velocity_seed_{seed:03d}", data=u_xt)
+            grp.create_dataset(f"velocity_seed{seed:03d}", data=u_xt)
             idx += 1
 
     elif pde == "KortewegDeVries":
@@ -171,10 +175,10 @@ with h5py.File(data_path, "w") as h5file:
             )
             u_xt = all_trajectories[idx]
             grp = h5file.create_group(group_name)
-            grp.create_dataset(f"velocity_seed_{seed:03d}", data=u_xt)
+            grp.create_dataset(f"velocity_seed{seed:03d}", data=u_xt)
             idx += 1
 
-    else:  # Burgers or Kuramoto-Sivashinsky
+    elif pde in ["Burgers", "KuramotoSivashinsky"]:
         for nu_val in nu:
             for seed in seed_list:
                 group_name = get_group_name(
@@ -187,8 +191,33 @@ with h5py.File(data_path, "w") as h5file:
                     grp = h5file[group_name]
                 else:
                     grp = h5file.create_group(group_name)
-                grp.create_dataset(f"velocity_seed_{seed:03d}", data=u_xt)
+                grp.create_dataset(f"velocity_seed{seed:03d}", data=u_xt)
                 idx += 1
+    
+    if pde == "GrayScott":
+        # Build the group name including feed & kill parameters
+        feed_rate = 0.04
+        kill_rate = 0.06
+
+        group_name = get_group_name(
+            pde,
+            seed_list[0],
+            feed=feed_rate,
+            kill=kill_rate,
+        )
+
+        # Create or reuse group in HDF5
+        if group_name in h5file:
+            grp = h5file[group_name]
+        else:
+            grp = h5file.create_group(group_name)
+
+        # Store each trajectory under its own seed name
+        for seed in seed_list:
+            u_xt = all_trajectories[idx]  # shape (T, C, X, Y)
+            grp.create_dataset(f"state_seed{seed:03d}", data=u_xt)
+            idx += 1
+
 
     print(f"File created at {data_path}")
 
@@ -285,7 +314,7 @@ def get_sim_metadata(pde, n_sim, seed_list, nu=None, ic_hashes=None):
 
 
 def create_animation(u_component, plots_path, seed_val, channel, ic="IC", nu_val=None,
-                     x_extent=1.0, y_extent=1.0, duration_sec=5, cmap='RdBu', vmin=None, vmax=None):
+                     x_extent=1.0, y_extent=1.0, duration_sec=5, cmap='viridis', vmin=None, vmax=None): # viridis for gray scott
     """
     Create and save a 2D animation for a single channel of a PDE trajectory.
 

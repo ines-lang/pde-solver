@@ -23,15 +23,11 @@ def generate_dataset(pde: str,
                       seed_list:List,
                       seed: int):
     
-    # end up changing this
-    # all_trajectories = []
-    # ic_hashes = []
-    # trajectory_nus = []
+    all_trajectories = []
+    ic_hashes = []
+    trajectory_nus = []
 
     if pde == "KuramotoSivashinsky":
-
-        all_trajectories = []
-        all_ic_hashes = []
 
         for nu_val in nu:
             ks_class = getattr(ex.stepper, pde)
@@ -62,6 +58,7 @@ def generate_dataset(pde: str,
                 trajectories = ex.rollout(ks_stepper, t_end, include_init=True)(u_0)
                 sampled_traj = trajectories[::save_freq]
                 all_trajectories.append(sampled_traj)
+
                 trajectory_nus.append(nu_val)
         
         all_trajectories = np.stack(all_trajectories)  # shape: (N, T_sampled, C, X, Z)
@@ -70,10 +67,8 @@ def generate_dataset(pde: str,
         return all_trajectories, ic_hashes, trajectory_nus
     
     elif pde == "Burgers":
-        burgers_class = getattr(ex.stepper, pde)
 
-        all_trajectories = []
-        trajectory_nus = []  # NEW: track which nu was used
+        burgers_class = getattr(ex.stepper, pde)
 
         for nu_val in nu:
             burgers_stepper = burgers_class(
@@ -128,11 +123,10 @@ def generate_dataset(pde: str,
         all_trajectories = np.stack(all_trajectories)  # shape: (N, T_sampled, C, X, Y, Z)
         print("Shape after stacking (Should be (N, T_sampled, C, X, Y, Z)):", all_trajectories.shape)
 
-        ic_hashes = [f"sim_{i}" for i in range(len(all_trajectories))]  # dummy hashes for each trajectory for consistency
-
         return all_trajectories, ic_hashes, trajectory_nus
     
     elif pde == "KortewegDeVries":
+
         kdv_class = getattr(ex.stepper, pde)
         kdv_stepper = kdv_class(
             num_spatial_dims=num_spatial_dims, 
@@ -152,10 +146,6 @@ def generate_dataset(pde: str,
             arr = np.asarray(jax.device_get(u_0))  # host, contiguous
             return hashlib.sha256(arr.tobytes()).hexdigest()[:length]
         
-        all_trajectories = []     # will hold (T_sampled, 1, X, Y, Z) per run
-        ic_hashes = []            # one hash per seed (covering its 3 ICs)
-        trajectory_nus = []       # run identifiers  
-
         ic_class = getattr(ex.ic, ic)
         common_kwargs = {"num_spatial_dims": num_spatial_dims}
         if ic == "RandomTruncatedFourierSeries":

@@ -15,7 +15,7 @@ from stepper import generate_dataset
 Simulation parameters:
 
 pde : str
-    PDE to solve. Options: 'KuramotoSivashinskyConservative' (ks)
+    PDE to solve. Options: 'KuramotoSivashinskyConservative', 'KuramotoSivashinsky', 'Burgers', 'KortewegDeVries'
 
 ic : str
     Initial condition function. Options: 'sine_ic_2d', 'gaussian_ic_2d', 'random_ic_2d', 'RandomTruncatedFourierSeries'
@@ -61,15 +61,15 @@ seed : int
     Random seed for reproducibility
 """
 
-pde = "KuramotoSivashinsky" # options: 'KuramotoSivashinskyConservative', 'KuramotoSivashinsky' (adds viscosity with nu), 'Burgers', 'KortewegDeVries'
+pde = "GrayScott" # options: 'KuramotoSivashinskyConservative', 'KuramotoSivashinsky' (adds viscosity with nu), 'Burgers', 'KortewegDeVries'
 num_spatial_dims = 1 
 ic = "RandomTruncatedFourierSeries" # options: 'RandomTruncatedFourierSeries', 'GaussianRandomField'
 bc = None
 
-x_domain_extent = 64.0
+x_domain_extent = 32.0
 num_points = 100 
 dt_save = 0.1
-t_end = 1000.0 
+t_end = 10.0 
 save_freq = 1 
 
 ''' What it implies:
@@ -148,7 +148,7 @@ with h5py.File(data_path, "w") as h5file:
             )
             u_xt = all_trajectories[idx]
             grp = h5file.create_group(group_name)
-            grp.create_dataset(f"velocity_seed_{seed:03d}", data=u_xt)
+            grp.create_dataset(f"velocity_seed{seed:03d}", data=u_xt)
             idx += 1
 
     else:  # Burgers or Kuramoto-Sivashinsky // change to elif if adding more pdes
@@ -164,7 +164,7 @@ with h5py.File(data_path, "w") as h5file:
                     grp = h5file[group_name]
                 else:
                     grp = h5file.create_group(group_name)
-                grp.create_dataset(f"velocity_seed_{seed:03d}", data=u_xt)
+                grp.create_dataset(f"velocity_seed{seed:03d}", data=u_xt)
                 idx += 1
     
     print(f"File created at {data_path}")

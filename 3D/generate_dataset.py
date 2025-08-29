@@ -152,7 +152,7 @@ with h5py.File(data_path, "w") as h5file:
             )
             u_xt = all_trajectories[idx]
             grp = h5file.create_group(group_name)
-            grp.create_dataset(f"velocity_seed_{seed:03d}", data=u_xt)
+            grp.create_dataset(f"velocity_seed{seed:03d}", data=u_xt)
             idx += 1
 
     else:  # Burgers or Kuramoto-Sivashinsky // change to elif if adding more pdes
@@ -168,7 +168,7 @@ with h5py.File(data_path, "w") as h5file:
                     grp = h5file[group_name]
                 else:
                     grp = h5file.create_group(group_name)
-                grp.create_dataset(f"velocity_seed_{seed:03d}", data=u_xt)
+                grp.create_dataset(f"velocity_seed{seed:03d}", data=u_xt)
                 idx += 1
 
     print(f"File created at {data_path}")
@@ -303,6 +303,7 @@ if plot_sim:
             print(f"Animation saved at {video_path}")
 
             plt.close(fig)
+
 
 # # ========================
 # # PLOT 3D ANIMATIONS (TIME INTENSIVE)
