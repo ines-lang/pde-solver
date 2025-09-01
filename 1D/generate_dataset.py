@@ -8,6 +8,8 @@ import numpy as np
 
 from stepper import generate_dataset
 
+num_spatial_dims = 1 
+
 # =========================================
 # USER INPUTS (PDE parameters)
 # =========================================
@@ -62,7 +64,6 @@ seed : int
 """
 
 pde = "GrayScott" # options: 'KuramotoSivashinskyConservative', 'KuramotoSivashinsky' (adds viscosity with nu), 'Burgers', 'KortewegDeVries'
-num_spatial_dims = 1 
 ic = "RandomTruncatedFourierSeries" # options: 'RandomTruncatedFourierSeries', 'GaussianRandomField'
 bc = None
 

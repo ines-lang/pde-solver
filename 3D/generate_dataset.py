@@ -11,6 +11,8 @@ from mpl_toolkits.mplot3d import Axes3D
 
 from stepper import generate_dataset
 
+num_spatial_dims = 3
+
 # =========================================
 # USER INPUTS (PDE parameters)
 # =========================================
@@ -66,7 +68,6 @@ seed : int
 """
 
 pde = "KortewegDeVries" # options: 'KuramotoSivashinsky', 'Burgers', 'KortewegDeVries'
-num_spatial_dims = 3
 ic = "RandomTruncatedFourierSeries" # options: 'RandomTruncatedFourierSeries'
 bc = None
 

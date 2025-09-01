@@ -11,6 +11,8 @@ from collections.abc import Iterable
 
 from stepper import generate_dataset
 
+num_spatial_dims = 2
+
 # =========================================
 # USER INPUTS (PDE parameters)
 # =========================================
@@ -18,7 +20,7 @@ from stepper import generate_dataset
 Simulation parameters:
 
 pde : str
-    PDE to solve. Options: 'KuramotoSivashinsky' (ks), 'Burgers'
+    PDE to solve. Options: 'KuramotoSivashinsky' (ks), 'Burgers', 'Kolmogorov', 'KortewegDeVries' (KdV), 'GrayScott', 'FisherKPP'
 
 ic : str
     Initial condition function. Options: 'RandomTruncatedFourierSeries', 'RandomSpectralVorticityField',
@@ -54,6 +56,18 @@ nu : float
 Re : float
     Reynolds number (used only for Kolmogorov)
 
+feed_rate : float
+    Feed rate (used only for Gray-Scott). Also called f in literature.
+
+kill_rate : float
+    Kill rate (used only for Gray-Scott). Also called k in literature.
+
+reactivity : float
+    Reactivity (used only for Fisher-KPP equation). Also called r in literature.
+
+critical_wavenumber : float 
+    Critical wavenumber for Swift-Hohenberg equation. Also called k.
+
 simulations : int
     Number of simulations to run
 
@@ -70,17 +84,16 @@ seed : int
     Random seed for reproducibility 
 """
 
-pde = "GrayScott" # options: 'KuramotoSivashinsky', 'Burgers', 'Kolmogorov', 'KortewegDeVries', 'GrayScott'
-num_spatial_dims = 2
-ic = "" # options: 'RandomTruncatedFourierSeries', 'RandomSpectralVorticityField', 
+pde = "SwiftHohenberg" # options: 'KuramotoSivashinsky', 'Burgers', 'Kolmogorov', 'KortewegDeVries', 'GrayScott'
+ic = "RandomTruncatedFourierSeries" # options: 'RandomTruncatedFourierSeries', 'RandomSpectralVorticityField', 
 bc = None
 
-x_domain_extent = 2.5
-y_domain_extent = 2.5
-num_points = 128
-dt_save = 1
-t_end = 5000.0 
-save_freq = 50
+x_domain_extent = 20 * np.pi
+y_domain_extent = 20 * np.pi
+num_points = 2048
+dt_save = 0.5
+t_end = 20.0 
+save_freq = 5
 
 ''' What it implies:
 Total steps: n_steps = t_end / dt_save
@@ -88,12 +101,18 @@ Output interval: dt_output = dt_save * save_freq
 Total saved frames: n_saved = n_steps / save_freq + 1
 '''
 
-nu = [0, 0.01, 0.1, 0.5]  # For Burgers and KortewegDeVries equations
-# todo implemnet Re as nu 
+nu = [0, 0.00001, 0.01]  # For Burgers, KortewegDeVries and FisherKPP equations
+# todo implement Re as nu 
 Re = 250  # For Kolmogorov equation
+reactivity = 0.6 # for FisherKPP and SwiftHohenberg
+critical_wavenumber = 1.0 # critical wavenumber for SwiftHohenberg
 
-simulations = 1
-plotted_sim = 1
+# For Gray Scott:
+feed_rate = 0.028
+kill_rate = 0.056
+
+simulations = 5
+plotted_sim = 2
 plot_sim = True
 stats = True
 seed = 42
@@ -114,6 +133,10 @@ all_trajectories, ic_hashes, trajectory_nus = generate_dataset(
     t_end=t_end,
     nu=nu,
     Re=Re,
+    feed_rate=feed_rate,
+    kill_rate=kill_rate,
+    reactivity=reactivity,
+    critical_wavenumber=critical_wavenumber,
     save_freq=save_freq,
     seed_list=seed_list,
     seed=seed)
@@ -136,7 +159,7 @@ os.makedirs(plots_path, exist_ok=True)
 # Create the h5py file and save the dataset with groups
 
 # Function to determine group name based on PDE and its parameters
-def get_group_name(pde, seed, nu_val=None, ic_val=None, Re=None, feed=None, kill=None):
+def get_group_name(pde, seed, nu_val=None, ic_val=None, Re=None, feed_rate=None, kill_rate=None, reactivity=None, critical_wavenumber=None):
     if pde == "Burgers":
         return f"nu_{nu_val:.3f}"
     elif pde == "KuramotoSivashinsky":  # with viscosity
@@ -146,7 +169,11 @@ def get_group_name(pde, seed, nu_val=None, ic_val=None, Re=None, feed=None, kill
     elif pde == "Kolmogorov":
         return f"Re_{Re:.3f}" # add Re_val when introducing a list
     elif pde == "GrayScott":
-        return f"feed_{feed:.3f}_kill_{kill:.3f}"
+        return f"feed_{feed_rate:.3f}_kill_{kill_rate:.3f}"
+    elif pde == "FisherKPP":
+        return f"nu_{nu_val:.3f}_reactivity_{reactivity:.3f}"
+    elif pde == "SwiftHohenberg":
+        return f"reactivity_{reactivity:.3f}_k_{critical_wavenumber:.3f}"
     else:
         return f"seed_{seed:03d}"
 
@@ -155,80 +182,87 @@ with h5py.File(data_path, "w") as h5file:
 
     if pde == "Kolmogorov":
         group_name = get_group_name(pde, seed_list[0], Re=Re)
-        if group_name in h5file:
-            grp = h5file[group_name]
-        else:
-            grp = h5file.create_group(group_name)
-
+        grp = h5file.require_group(group_name)   # cleaner than manual if/else
         for seed in seed_list:
             u_xt = all_trajectories[idx]
-            grp.create_dataset(f"velocity_seed{seed:03d}", data=u_xt)
+            ds_name = f"velocity_seed{seed:03d}"
+            if ds_name in grp:
+                del grp[ds_name]
+            grp.create_dataset(ds_name, data=u_xt)
             idx += 1
 
     elif pde == "KortewegDeVries":
         for seed in seed_list:
-            ic_val = ic_hashes[idx] if "ic_hashes" in locals() and idx < len(ic_hashes) else None
-            group_name = get_group_name(
-                pde,
-                seed,
-                ic_val=ic_val,   # use ic_hash for KdV
-            )
+            ic_val = ic_hashes[idx] if idx < len(ic_hashes) else None
+            group_name = get_group_name(pde, seed, ic_val=ic_val)
+            grp = h5file.require_group(group_name)
+
             u_xt = all_trajectories[idx]
-            grp = h5file.create_group(group_name)
-            grp.create_dataset(f"velocity_seed{seed:03d}", data=u_xt)
+            ds_name = f"velocity_seed{seed:03d}"
+            if ds_name in grp:
+                del grp[ds_name]
+            grp.create_dataset(ds_name, data=u_xt)
             idx += 1
 
     elif pde in ["Burgers", "KuramotoSivashinsky"]:
         for nu_val in nu:
+            group_name = get_group_name(pde, 0, nu_val=nu_val)  # only use nu for group
+            grp = h5file.require_group(group_name)
             for seed in seed_list:
-                group_name = get_group_name(
-                    pde,
-                    seed,
-                    nu_val=nu_val,
-                )
                 u_xt = all_trajectories[idx]
-                if group_name in h5file:
-                    grp = h5file[group_name]
-                else:
-                    grp = h5file.create_group(group_name)
-                grp.create_dataset(f"velocity_seed{seed:03d}", data=u_xt)
+                ds_name = f"velocity_seed{seed:03d}"
+                if ds_name in grp:
+                    del grp[ds_name]
+                grp.create_dataset(ds_name, data=u_xt)
                 idx += 1
-    
-    if pde == "GrayScott":
-        # Build the group name including feed & kill parameters
-        feed_rate = 0.04
-        kill_rate = 0.06
 
-        group_name = get_group_name(
-            pde,
-            seed_list[0],
-            feed=feed_rate,
-            kill=kill_rate,
-        )
-
-        # Create or reuse group in HDF5
-        if group_name in h5file:
-            grp = h5file[group_name]
-        else:
-            grp = h5file.create_group(group_name)
-
-        # Store each trajectory under its own seed name
+    elif pde == "GrayScott":
+        group_name = get_group_name(pde, 0, feed_rate=feed_rate, kill_rate=kill_rate)
+        grp = h5file.require_group(group_name)
         for seed in seed_list:
-            u_xt = all_trajectories[idx]  # shape (T, C, X, Y)
-            grp.create_dataset(f"state_seed{seed:03d}", data=u_xt)
+            u_xt = all_trajectories[idx]
+            ds_name = f"state_seed{seed:03d}"
+            if ds_name in grp:
+                del grp[ds_name]
+            grp.create_dataset(ds_name, data=u_xt)
             idx += 1
 
+    elif pde == "FisherKPP":
+        for nu_val in nu:
+            group_name = get_group_name(pde, 0, nu_val=nu_val, reactivity=reactivity)
+            grp = h5file.require_group(group_name)
+            for seed in seed_list:
+                u_xt = all_trajectories[idx]
+                ds_name = f"state_seed{seed:03d}"
+                if ds_name in grp:
+                    del grp[ds_name]
+                grp.create_dataset(ds_name, data=u_xt)
+                idx += 1
+
+    elif pde == "SwiftHohenberg":
+        group_name = get_group_name(
+            pde, 0,
+            reactivity=reactivity,
+            critical_wavenumber=critical_wavenumber,
+        )
+        grp = h5file.require_group(group_name)
+        for seed in seed_list:
+            u_xt = all_trajectories[idx]
+            ds_name = f"velocity_seed{seed:03d}"
+            if ds_name in grp:
+                del grp[ds_name]
+            grp.create_dataset(ds_name, data=u_xt)
+            idx += 1
 
     print(f"File created at {data_path}")
 
-    
     # Optional: print structure
     def print_structure(name, obj):
         if isinstance(obj, h5py.Group):
-            print(f"Group: {name}")
+            print(f"Group: {obj.name.split('/')[-1]}")
         elif isinstance(obj, h5py.Dataset):
-            print(f"  Dataset: {name} - Shape: {obj.shape}, Dtype: {obj.dtype}")
-    
+            print(f"  Dataset: {obj.name.split('/')[-1]} - Shape: {obj.shape}, Dtype: {obj.dtype}")
+
     h5file.visititems(print_structure)
 
 # ========================
@@ -294,7 +328,7 @@ if stats:
 
 def get_sim_metadata(pde, n_sim, seed_list, nu=None, ic_hashes=None):
     """Return seed_val, nu_val, ic_val for the given PDE and simulation index."""
-    if pde in ["Burgers", "KuramotoSivashinsky"]:
+    if pde in ["Burgers", "KuramotoSivashinsky", "FisherKPP"]:
         nu_val = nu[n_sim % len(nu)]
         seed_val = seed_list[n_sim % len(seed_list)]
         ic_val = None
@@ -302,19 +336,29 @@ def get_sim_metadata(pde, n_sim, seed_list, nu=None, ic_hashes=None):
         ic_val = ic_hashes[n_sim % len(ic_hashes)]
         seed_val = seed_list[n_sim % len(seed_list)]
         nu_val = None
-    elif pde == "Kolmogorov":
-        seed_val = seed_list[n_sim % len(seed_list)]
-        nu_val = None
-        ic_val = None
     else:
         seed_val = seed_list[n_sim % len(seed_list)]
         nu_val = None
         ic_val = None
     return seed_val, nu_val, ic_val
 
-
-def create_animation(u_component, plots_path, seed_val, channel, ic="IC", nu_val=None,
-                     x_extent=1.0, y_extent=1.0, duration_sec=5, cmap='viridis', vmin=None, vmax=None): # viridis for gray scott
+def create_animation(
+    u_component,
+    plots_path,
+    seed_val,
+    channel,
+    ic="IC",
+    nu_val=None,
+    x_extent=1.0,
+    y_extent=1.0,
+    dt_output=1.0,       # physical time step between saved frames
+    mode="physical",     # "physical" or "fixed"
+    duration_sec=None,   # used only if mode="fixed"
+    fps=20,
+    cmap="viridis",
+    vmin=None,
+    vmax=None,
+):
     """
     Create and save a 2D animation for a single channel of a PDE trajectory.
 
@@ -331,55 +375,63 @@ def create_animation(u_component, plots_path, seed_val, channel, ic="IC", nu_val
     ic : str
         Initial condition name
     nu_val : float or None
-        Viscosity or parameter for PDE
-    x_extent : float
-        X-axis domain size
-    y_extent : float
-        Y-axis domain size
-    duration_sec : float
-        Duration of the final video in seconds
-    cmap : str
-        Colormap
-    vmin, vmax : float
-        Color scaling
+        Diffusivity/parameter
+    dt_output : float
+        Physical time between stored frames
+    mode : str
+        "physical" → video matches physical simulation time
+        "fixed" → video has fixed duration (duration_sec)
+    duration_sec : float or None
+        Fixed video length in seconds (only if mode="fixed")
+    fps : int
+        Frames per second
     """
     nu_str = f"{nu_val:.3f}" if nu_val is not None else "NA"
 
     fig, ax = plt.subplots(figsize=(8, 8))
-    init_frame = u_component[0]  # no transpose
-    im = ax.imshow(init_frame, origin='lower', extent=(0, x_extent, 0, y_extent),
-                   aspect='auto', cmap=cmap, vmin=vmin, vmax=vmax)
+    init_frame = u_component[0]
+    im = ax.imshow(init_frame, origin="lower", extent=(0, x_extent, 0, y_extent),
+                   aspect="auto", cmap=cmap, vmin=vmin, vmax=vmax)
     cbar = fig.colorbar(im, ax=ax)
     cbar.set_label("u(x, t)")
     title = ax.set_title(f"{ic} - nu={nu_str} - seed {seed_val:03d} - channel {channel} - t=0")
     ax.set_xlabel("x")
     ax.set_ylabel("y")
 
-    # Determine frames and fps, ensure full coverage
     n_total_frames = u_component.shape[0]
-    fps = 20
-    frames = np.linspace(0, n_total_frames - 1, num=int(duration_sec * fps), dtype=int)
+    sim_duration = (n_total_frames - 1) * dt_output
+
+    if mode == "physical":
+        frames = range(n_total_frames)
+        print(f"[Video] Physical mode: sim_duration={sim_duration:.2f}, frames={n_total_frames}")
+    elif mode == "fixed":
+        if duration_sec is None:
+            raise ValueError("duration_sec must be provided for mode='fixed'")
+        n_video_frames = int(fps * duration_sec)
+        frames = np.linspace(0, n_total_frames - 1, n_video_frames, dtype=int)
+        print(f"[Video] Fixed mode: duration_sec={duration_sec:.2f}, frames={n_video_frames}")
+    else:
+        raise ValueError("mode must be 'physical' or 'fixed'")
 
     def update(t_idx):
         frame = u_component[t_idx]
         im.set_array(frame)
-        title.set_text(f"{ic} - nu={nu_str} - seed {seed_val:03d} - channel {channel} - t={t_idx}")
+        t_phys = t_idx * dt_output
+        title.set_text(
+            f"{ic} - nu={nu_str} - seed {seed_val:03d} - channel {channel} - t={t_phys:.2f}"
+        )
         return im, title
 
     ani = animation.FuncAnimation(fig, update, frames=frames, blit=False)
 
-    out_video = os.path.join(plots_path, f"seed_{seed_val:03d}_channel_{channel}_nu_{nu_str}.mp4")
-    fallback_png = os.path.join(plots_path, f"seed_{seed_val:03d}_channel_{channel}_nu_{nu_str}_frame0.png")
+    out_video = os.path.join(
+        plots_path, f"seed_{seed_val:03d}_channel_{channel}_nu_{nu_str}.mp4"
+    )
 
     try:
         writer = animation.FFMpegWriter(fps=fps)
         ani.save(out_video, writer=writer)
         print(f"Saved animation: {out_video}")
-    except Exception as e:
-        print(f"[Error] saving animation: {e}")
-        # fallback
-        plt.imsave(fallback_png, init_frame, origin='lower')
-        print(f"Saved fallback frame: {fallback_png}")
     finally:
         plt.close(fig)
 
@@ -415,7 +467,10 @@ if plot_sim:
                 nu_val=nu_val,
                 x_extent=x_domain_extent,
                 y_extent=y_domain_extent,
-                duration_sec=10,
+                dt_output=dt_save*save_freq,
+                mode="fixed",      # or "fixed"
+                duration_sec=10,      # only used if mode="fixed"
+                fps=20,
                 vmin=vmin_val,
-                vmax=vmax_val
+                vmax=vmax_val,
             )
