@@ -20,7 +20,11 @@ pde : str
     PDE to solve. Options: 'KuramotoSivashinskyConservative', 'KuramotoSivashinsky', 'Burgers', 'KortewegDeVries'
 
 ic : str
-    Initial condition function. Options: 'sine_ic_2d', 'gaussian_ic_2d', 'random_ic_2d', 'RandomTruncatedFourierSeries'
+    Initial condition function. Proposed options:
+    - For Burgers, KS and KdV: 'RandomTruncatedFourierSeries'
+    - For FisherKPP: 'ClampedFourier'
+    - For Gray-Scott: 'RandomGaussianBlobs'
+    - For Swift-Hohenberg: 'RandomTruncatedFourierSeries', 'GaussianRandomField' or 'DifffusedNoise'.
 
 bc : callable
     Boundary condition. (Unused As JAX computes spatial derivatives using the Fast Fourier Transform (FFT)
@@ -75,8 +79,8 @@ seed : int
     Random seed for reproducibility
 """
 
-pde = "FisherKPP" # options: 'KuramotoSivashinskyConservative', 'KuramotoSivashinsky' (adds viscosity with nu), 'Burgers', 'KortewegDeVries'
-ic = "RandomTruncatedFourierSeries" # options: 'RandomTruncatedFourierSeries', 'GaussianRandomField'
+pde = "FisherKPP" # options: 'KuramotoSivashinskyConservative', 'KuramotoSivashinsky' (adds viscosity with nu), 'Burgers', 'KortewegDeVries', 'GrayScott', 'FisherKPP', 'SwiftHohenberg'
+ic = "RandomTruncatedFourierSeries" # options: see description above
 bc = None
 
 x_domain_extent = 1.0
@@ -104,6 +108,18 @@ plotted_sim = 1
 plot_sim = True
 stats = True
 seed = 42 
+
+# Define PDE-to-colormap mapping
+pde_cmaps = {
+    "GrayScott": "viridis",
+    "FisherKPP": "viridis",
+    "SwiftHohenberg": "viridis",
+    "Burgers": "RdBu",
+    "KuramotoSivashinsky": "RdBu",
+    "KuramotoSivashinskyConservative": "RdBu",
+    "KortewegDeVries": "RdBu",
+}
+default_cmap = "viridis"
 
 # =========================================
 # GENERATE DATASET
@@ -332,10 +348,12 @@ if plot_sim:
         sim_name = sim_names[n_sim]
 
         for c in range(num_channels):
+            # Pick PDE-specific colormap
+            cmap_val = pde_cmaps.get(pde, default_cmap)
             plt.imshow(
                 all_trajectories[n_sim, c, :, :].T,
                 aspect='auto',
-                cmap='viridis',
+                cmap=cmap_val,       # <-- use PDE-dependent cmap here
                 vmin=mins[c],
                 vmax=maxs[c],
                 origin="lower"

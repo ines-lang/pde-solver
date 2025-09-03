@@ -23,9 +23,12 @@ pde : str
     PDE to solve. Options: 'KuramotoSivashinsky' (ks), 'Burgers', 'Kolmogorov', 'KortewegDeVries' (KdV), 'GrayScott', 'FisherKPP'
 
 ic : str
-    Initial condition function. Options: 'RandomTruncatedFourierSeries', 'RandomSpectralVorticityField',
-    For Kolmogorov and Gray Scott you dont don’t need to pass an initial condition as it uses a fixed one.
-    'RandomTruncatedFourierSeries' is used for Burgers, KS and KdV equations.
+    Initial condition function. Proposed options:
+    - For Burgers, KS and KdV: 'RandomTruncatedFourierSeries'
+    - For Kolmogorov: 'SpectralFlow'
+    - For FisherKPP: 'ClampedFourier'
+    - For Gray-Scott: 'RandomGaussianBlobs'
+    - For Swift-Hohenberg: 'RandomTruncatedFourierSeries', 'GaussianRandomField' or 'DifffusedNoise'.
 
 bc : callable
     Boundary condition. (Unused As JAX computes spatial derivatives using the Fast Fourier Transform (FFT)
@@ -84,16 +87,16 @@ seed : int
     Random seed for reproducibility 
 """
 
-pde = "SwiftHohenberg" # options: 'KuramotoSivashinsky', 'Burgers', 'Kolmogorov', 'KortewegDeVries', 'GrayScott'
-ic = "RandomTruncatedFourierSeries" # options: 'RandomTruncatedFourierSeries', 'RandomSpectralVorticityField', 
+pde = "GrayScott" # options: 'KuramotoSivashinsky', 'Burgers', 'Kolmogorov', 'KortewegDeVries', 'GrayScott', 'FisherKPP', 'SwiftHohenberg'
+ic = "RandomTruncatedFourierSeries" # options: see description above
 bc = None
 
-x_domain_extent = 20 * np.pi
-y_domain_extent = 20 * np.pi
-num_points = 2048
-dt_save = 0.5
-t_end = 20.0 
-save_freq = 5
+x_domain_extent = 2.5
+y_domain_extent = 2.5
+num_points = 128
+dt_save = 1
+t_end = 5000.0 
+save_freq = 50
 
 ''' What it implies:
 Total steps: n_steps = t_end / dt_save
@@ -111,11 +114,24 @@ critical_wavenumber = 1.0 # critical wavenumber for SwiftHohenberg
 feed_rate = 0.028
 kill_rate = 0.056
 
-simulations = 5
-plotted_sim = 2
+simulations = 10
+plotted_sim = 5
 plot_sim = True
 stats = True
 seed = 42
+
+# Define PDE-to-colormap mapping
+pde_cmaps = {
+    "GrayScott": "viridis",
+    "FisherKPP": "vidiris",
+    "SwiftHohenberg": "viridis",
+    "Burgers": "RdBu",
+    "KuramotoSivashinsky": "RdBu",
+    "KortewegDeVries": "RdBu",
+    "Kolmogorov": "inferno",
+}
+default_cmap = "viridis"
+
 
 # =========================================
 # GENERATE DATASET
@@ -458,6 +474,8 @@ if plot_sim:
             vmin_val = mins[c % len(mins)]
             vmax_val = maxs[c % len(maxs)]
             
+            cmap_val = pde_cmaps.get(pde, default_cmap)
+
             create_animation(
                 u_component,
                 plots_path,
@@ -473,4 +491,5 @@ if plot_sim:
                 fps=20,
                 vmin=vmin_val,
                 vmax=vmax_val,
+                cmap=cmap_val,
             )

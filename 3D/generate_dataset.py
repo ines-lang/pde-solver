@@ -23,7 +23,11 @@ pde : str
     PDE to solve. Options: 'KuramotoSivashinsky' (ks), 'Burgers'
 
 ic : str
-    Initial condition function. Options: 'RandomTruncatedFourierSeries'
+    Initial condition function. Proposed options:
+    - For Burgers, KS and KdV: 'RandomTruncatedFourierSeries'
+    - For FisherKPP: 'ClampedFourier'
+    - For Gray-Scott: 'RandomGaussianBlobs'
+    - For Swift-Hohenberg: 'RandomTruncatedFourierSeries', 'GaussianRandomField' or 'DifffusedNoise'.
 
 bc : callable
     Boundary condition. (Unused As JAX computes spatial derivatives using the Fast Fourier Transform (FFT)
@@ -79,8 +83,8 @@ seed : int
     Random seed for reproducibility   
 """
 
-pde = "KortewegDeVries" # options: 'KuramotoSivashinsky', 'Burgers', 'KortewegDeVries'
-ic = "RandomTruncatedFourierSeries" # options: 'RandomTruncatedFourierSeries'
+pde = "KortewegDeVries" # options: 'KuramotoSivashinsky', 'Burgers', 'KortewegDeVries', 'GrayScott', 'FisherKPP', 'SwiftHohenberg'
+ic = "RandomTruncatedFourierSeries" # options: see description above
 bc = None
 
 x_domain_extent = 32.0

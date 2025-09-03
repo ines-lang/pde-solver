@@ -223,6 +223,10 @@ def generate_dataset(pde: str,
             key = jax.random.PRNGKey(seed)
 
             # IC: random Gaussian blobs
+            # Check IC
+            if ic != "RandomGaussianBlobs":
+                raise ValueError(f"IC '{ic}' not implemented for PDE 'GrayScott'. Use 'RandomGaussianBlobs'.")
+
             v_gen = ex.ic.RandomGaussianBlobs(
                 num_spatial_dims=num_spatial_dims,
                 domain_extent=x_domain_extent,
@@ -271,6 +275,10 @@ def generate_dataset(pde: str,
             for seed in seed_list:
                 key = jax.random.PRNGKey(seed)
                 # --- Base IC: Random truncated Fourier series ---
+                # Check IC
+                if ic != "ClampedFourier":
+                    raise ValueError(f"IC '{ic}' not implemented for PDE 'FisherKPP'. Use 'ClampedFourier'.")
+                
                 base_ic = ex.ic.RandomTruncatedFourierSeries(
                     num_spatial_dims=num_spatial_dims, cutoff=5
                 )
@@ -319,7 +327,7 @@ def generate_dataset(pde: str,
             elif ic == "DiffusedNoise":
                 base_ic = ex.ic.DiffusedNoise(num_spatial_dims=num_spatial_dims, intensity=1e-3)
             else:
-                raise ValueError(f"IC type: {ic}")
+                raise ValueError(f"IC '{ic}' not implemented for PDE 'SwiftHohenberg'. Use 'RandomTruncatedFourierSeries', 'GaussianRandomField' or 'DiffusedNoise' instead .")
 
             ic_gen = ex.ic.ScaledICGenerator(base_ic, scale=0.1)  # small perturbation
 
