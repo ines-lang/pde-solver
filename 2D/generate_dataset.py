@@ -101,7 +101,7 @@ Output interval: dt_output = dt_save * save_freq
 Total saved frames: n_saved = n_steps / save_freq + 1
 '''
 
-nu = [0, 0.00001, 0.01]  # For Burgers, KortewegDeVries and FisherKPP equations
+nu = [0, 0.00001, 0.01]  # For Burgers, KortewegDeVries, FisherKPP and SwiftHohenberg equations
 # todo implement Re as nu 
 Re = 250  # For Kolmogorov equation
 reactivity = 0.6 # for FisherKPP and SwiftHohenberg

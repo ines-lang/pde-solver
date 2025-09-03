@@ -51,6 +51,18 @@ save_freq : int
 nu : float
     Viscosity (used for Burgers and KS equations)
 
+feed_rate : float
+    Feed rate (used only for Gray-Scott). Also called f in literature.
+
+kill_rate : float
+    Kill rate (used only for Gray-Scott). Also called k in literature.
+
+reactivity : float
+    Reactivity (used only for Fisher-KPP equation). Also called r in literature.
+
+critical_wavenumber : float 
+    Critical wavenumber for Swift-Hohenberg equation. Also called k.
+
 simulations : int
     Number of simulations to run
 
@@ -85,7 +97,13 @@ Output interval: dt_output = dt_save * save_freq
 Total saved frames: n_saved = n_steps / save_freq + 1
 '''
 
-nu = [0, 0.01]  # For Burgers and KortewegDeVries equations
+nu = [0, 0.01]  # For Burgers, KortewegDeVries, FisherKPP and SwiftHohenberg equations
+reactivity = 0.6 # for FisherKPP and SwiftHohenberg
+critical_wavenumber = 1.0 # critical wavenumber for SwiftHohenberg
+
+# For Gray Scott:
+feed_rate = 0.028
+kill_rate = 0.056
 
 simulations = 2
 plotted_sim = 1
@@ -108,6 +126,10 @@ all_trajectories, ic_hashes, trajectory_nus = generate_dataset(
     dt_save=dt_save,
     t_end=t_end,
     nu=nu,
+    feed_rate=feed_rate,
+    kill_rate=kill_rate,
+    reactivity=reactivity,
+    critical_wavenumber=critical_wavenumber,
     save_freq=save_freq,
     seed_list=seed_list,
     seed=seed)
@@ -130,13 +152,19 @@ os.makedirs(plots_path, exist_ok=True)
 # Create the h5py file and save the dataset with groups
 
 # Function to determine group name based on PDE and its parameters
-def get_group_name(pde, seed, nu_val=None, ic_val=None):
+def get_group_name(pde, seed, nu_val=None, ic_val=None, feed_rate=None, kill_rate=None, reactivity=None, critical_wavenumber=None):
     if pde == "Burgers":
         return f"nu_{nu_val:.3f}"
     elif pde == "KuramotoSivashinsky":
         return f"nu_{nu_val:.3f}"
     elif pde == "KortewegDeVries":
         return f"ic_{ic_val}"
+    elif pde == "GrayScott":
+        return f"feed_{feed_rate:.3f}_kill_{kill_rate:.3f}"
+    elif pde == "FisherKPP":
+        return f"nu_{nu_val:.3f}_reactivity_{reactivity:.3f}"
+    elif pde == "SwiftHohenberg":
+        return f"reactivity_{reactivity:.3f}_k_{critical_wavenumber:.3f}"
     else:
         return f"seed_{seed:03d}"
 
@@ -145,32 +173,66 @@ with h5py.File(data_path, "w") as h5file:
 
     if pde == "KortewegDeVries":
         for seed in seed_list:
-            ic_val = ic_hashes[idx] if "ic_hashes" in locals() and idx < len(ic_hashes) else None
-            group_name = get_group_name(
-                pde,
-                seed,
-                ic_val=ic_val,   # use ic_hash for KdV
-            )
+            ic_val = ic_hashes[idx] if idx < len(ic_hashes) else None
+            group_name = get_group_name(pde, seed, ic_val=ic_val)
+            grp = h5file.require_group(group_name)
+
             u_xt = all_trajectories[idx]
-            grp = h5file.create_group(group_name)
-            grp.create_dataset(f"velocity_seed{seed:03d}", data=u_xt)
+            ds_name = f"velocity_seed{seed:03d}"
+            if ds_name in grp:
+                del grp[ds_name]
+            grp.create_dataset(ds_name, data=u_xt)
             idx += 1
 
-    else:  # Burgers or Kuramoto-Sivashinsky // change to elif if adding more pdes
+    elif pde in ["Burgers", "KuramotoSivashinsky"]:
         for nu_val in nu:
+            group_name = get_group_name(pde, 0, nu_val=nu_val)  # only use nu for group
+            grp = h5file.require_group(group_name)
             for seed in seed_list:
-                group_name = get_group_name(
-                    pde,
-                    seed,
-                    nu_val=nu_val,
-                )
                 u_xt = all_trajectories[idx]
-                if group_name in h5file:
-                    grp = h5file[group_name]
-                else:
-                    grp = h5file.create_group(group_name)
-                grp.create_dataset(f"velocity_seed{seed:03d}", data=u_xt)
+                ds_name = f"velocity_seed{seed:03d}"
+                if ds_name in grp:
+                    del grp[ds_name]
+                grp.create_dataset(ds_name, data=u_xt)
                 idx += 1
+
+    elif pde == "GrayScott":
+        group_name = get_group_name(pde, 0, feed_rate=feed_rate, kill_rate=kill_rate)
+        grp = h5file.require_group(group_name)
+        for seed in seed_list:
+            u_xt = all_trajectories[idx]
+            ds_name = f"state_seed{seed:03d}"
+            if ds_name in grp:
+                del grp[ds_name]
+            grp.create_dataset(ds_name, data=u_xt)
+            idx += 1
+
+    elif pde == "FisherKPP":
+        for nu_val in nu:
+            group_name = get_group_name(pde, 0, nu_val=nu_val, reactivity=reactivity)
+            grp = h5file.require_group(group_name)
+            for seed in seed_list:
+                u_xt = all_trajectories[idx]
+                ds_name = f"state_seed{seed:03d}"
+                if ds_name in grp:
+                    del grp[ds_name]
+                grp.create_dataset(ds_name, data=u_xt)
+                idx += 1
+
+    elif pde == "SwiftHohenberg":
+        group_name = get_group_name(
+            pde, 0,
+            reactivity=reactivity,
+            critical_wavenumber=critical_wavenumber,
+        )
+        grp = h5file.require_group(group_name)
+        for seed in seed_list:
+            u_xt = all_trajectories[idx]
+            ds_name = f"velocity_seed{seed:03d}"
+            if ds_name in grp:
+                del grp[ds_name]
+            grp.create_dataset(ds_name, data=u_xt)
+            idx += 1
 
     print(f"File created at {data_path}")
 
@@ -178,10 +240,10 @@ with h5py.File(data_path, "w") as h5file:
     # Optional: print structure
     def print_structure(name, obj):
         if isinstance(obj, h5py.Group):
-            print(f"Group: {name}")
+            print(f"Group: {obj.name.split('/')[-1]}")
         elif isinstance(obj, h5py.Dataset):
-            print(f"  Dataset: {name} - Shape: {obj.shape}, Dtype: {obj.dtype}")
-    
+            print(f"  Dataset: {obj.name.split('/')[-1]} - Shape: {obj.shape}, Dtype: {obj.dtype}")
+
     h5file.visititems(print_structure)
 
 # ========================

@@ -19,6 +19,10 @@ def generate_dataset(pde: str,
                       t_end: float,
                       save_freq: int, 
                       nu: list,
+                      feed_rate: float,
+                      kill_rate: float,
+                      reactivity: float,
+                      critical_wavenumber: float,
                       seed_list:List,
                       seed: int):
     
@@ -198,6 +202,138 @@ def generate_dataset(pde: str,
             
         all_trajectories = np.stack(all_trajectories)  # shape: (N, T_sampled, C, X)
         # Move channel dimension to position 1
+        all_trajectories = np.moveaxis(all_trajectories, -2, 1)  # (N, C, T, X)
+        
+        return all_trajectories, ic_hashes, trajectory_nus
+    
+    elif pde == "GrayScott":
+
+        gray_scott_class = getattr(ex.stepper.reaction, pde)
+        gray_scott_stepper = gray_scott_class(
+            num_spatial_dims=num_spatial_dims, 
+            domain_extent=x_domain_extent,
+            num_points=num_points, 
+            dt=dt_save,
+            feed_rate=feed_rate,
+            kill_rate=kill_rate,
+            )
+        
+        for seed in seed_list:
+            # Generate initial condition
+            key = jax.random.PRNGKey(seed)
+
+            # IC: random Gaussian blobs
+            v_gen = ex.ic.RandomGaussianBlobs(
+                num_spatial_dims=num_spatial_dims,
+                domain_extent=x_domain_extent,
+                num_blobs=4,
+                position_range=(0.2, 0.8),  # if config != "gs-kappa" else (0.4, 0.6),
+                variance_range=(0.005, 0.01),
+            )
+
+            # Actually sample the field
+            v_field = v_gen(num_points=num_points, key=key)   # shape (1, X, Y)
+
+            # Build u field as complement
+            u_field = 1.0 - v_field                           # shape (1, X, Y)
+
+            # Concatenate to get initial state
+            u_0 = jnp.concatenate([u_field, v_field], axis=0)  # shape (2, X, Y)
+
+            trajectories = ex.rollout(gray_scott_stepper, t_end, include_init=True)(u_0)
+            sampled_traj = trajectories[::save_freq]
+            all_trajectories.append(sampled_traj)
+            
+            trajectory_nus.append(f"sim_{len(trajectory_nus)}")  # dummy id
+            
+        all_trajectories = np.stack(all_trajectories)  # shape: (N, T_sampled, C, X)
+        all_trajectories = np.moveaxis(all_trajectories, -2, 1)  # (N, C, T, X)
+
+        trajectory_nus = [f"sim_{i}" for i in range(len(all_trajectories))] # dummy variable for each trajectory for consistency
+        ic_hashes = [f"sim_{i}" for i in range(len(all_trajectories))]
+
+        return all_trajectories, ic_hashes, trajectory_nus
+    
+    elif pde == "FisherKPP":
+        
+        for nu_val in nu:
+
+            fisher_class = getattr(ex.stepper.reaction, pde)
+            fisher_stepper = fisher_class(
+                num_spatial_dims=num_spatial_dims, 
+                domain_extent=x_domain_extent,
+                num_points=num_points, 
+                dt=dt_save,
+                diffusivity=nu_val,
+                reactivity=reactivity,
+                )
+            
+            for seed in seed_list:
+                key = jax.random.PRNGKey(seed)
+                # --- Base IC: Random truncated Fourier series ---
+                base_ic = ex.ic.RandomTruncatedFourierSeries(
+                    num_spatial_dims=num_spatial_dims, cutoff=5
+                )
+
+                # --- Clamp to [0, 1] for Fisher-KPP ---
+                ic_gen = ex.ic.ClampingICGenerator(base_ic, limits=(0.0, 1.0))
+
+                # --- Generate the initial condition ---
+                u_0 = ic_gen(num_points=num_points, key=key)  # shape (1, X, Y)
+
+                # --- Rollout ---
+                trajectories = ex.rollout(fisher_stepper, t_end, include_init=True)(u_0)
+                sampled_traj = trajectories[::save_freq] # deleted
+                all_trajectories.append(sampled_traj)
+                
+                trajectory_nus.append(nu_val)  # save the nu
+                ic_hashes.append(f"sim_{len(ic_hashes)}")  # dummy id
+                
+        all_trajectories = np.stack(all_trajectories)  # shape: (N, T_sampled, C, X)
+        all_trajectories = np.moveaxis(all_trajectories, -2, 1)  # (N, C, T, X)
+
+        return all_trajectories, ic_hashes, trajectory_nus
+
+    elif pde == "SwiftHohenberg":
+        
+        swift_class = getattr(ex.stepper.reaction, pde)
+        swift_stepper =swift_class(
+            num_spatial_dims=num_spatial_dims, 
+            domain_extent=x_domain_extent,
+            num_points=num_points, 
+            dt=dt_save,
+            reactivity=reactivity, # r
+            critical_number=critical_wavenumber, # k
+            polynomial_coefficients=(0.0, 0.0, 1.0, -1.0),  # u² - u³
+            )
+        
+        for seed in seed_list:
+            # Generate initial condition
+            key = jax.random.PRNGKey(seed)
+            
+            # --- Initial condition ---
+            if ic == "RandomTruncatedFourierSeries":
+                base_ic = ex.ic.RandomTruncatedFourierSeries(num_spatial_dims=num_spatial_dims, cutoff=5)
+            elif ic == "GaussianRandomField":
+                base_ic = ex.ic.GaussianRandomField(num_spatial_dims=num_spatial_dims)
+            elif ic == "DiffusedNoise":
+                base_ic = ex.ic.DiffusedNoise(num_spatial_dims=num_spatial_dims, intensity=1e-3)
+            else:
+                raise ValueError(f"IC type: {ic}")
+
+            ic_gen = ex.ic.ScaledICGenerator(base_ic, scale=0.1)  # small perturbation
+
+            u_0 = ic_gen(num_points=num_points, key=key)  # shape (1, X, Y)
+
+            # ---- Rollout ----
+            trajectories = ex.rollout(swift_stepper, t_end, include_init=True)(u_0)
+            sampled_traj = trajectories[::save_freq]
+            all_trajectories.append(sampled_traj)
+
+            trajectory_nus = [f"sim_{i}" for i in range(len(all_trajectories))] # dummy variable for each trajectory for consistency
+            ic_hashes = [f"sim_{i}" for i in range(len(all_trajectories))]
+            
+        all_trajectories = np.stack(all_trajectories)  # shape: (N, T_sampled, C, X)
         all_trajectories = np.moveaxis(all_trajectories, -2, 1)  # (N, C, T, X)
         
         return all_trajectories, ic_hashes, trajectory_nus

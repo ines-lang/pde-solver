@@ -20,6 +20,10 @@ def generate_dataset(pde: str,
                       t_end: float,
                       save_freq: int, 
                       nu: float,
+                      feed_rate: float,
+                      kill_rate: float,
+                      reactivity: float,
+                      critical_wavenumber: float,
                       seed_list:List,
                       seed: int):
     
@@ -138,10 +142,7 @@ def generate_dataset(pde: str,
             hyper_diffusivity=0.1,     # try 0.05 → 0.1 if still unstable
             order=2,                    # can try 3 or 4 for accuracy
         )       
-        # def ic_hash(u_0, length=8):
-        #     full_hash = hashlib.sha256(u_0.tobytes()).hexdigest()
-        #     return full_hash[:length]  # Return first 'length' characters of the hash
-        # Hash ICs deterministically (after host transfer)
+        
         def ic_hash(u_0, length=8):
             arr = np.asarray(jax.device_get(u_0))  # host, contiguous
             return hashlib.sha256(arr.tobytes()).hexdigest()[:length]
@@ -152,7 +153,6 @@ def generate_dataset(pde: str,
                 common_kwargs["cutoff"] = 5
         ic_instance = ic_class(**common_kwargs)
 
-        
         # Rollout function expects NUMBER OF STEPS, not time
         n_steps = int(np.ceil(t_end / dt_save))
         rollout_fn = ex.rollout(kdv_stepper, n_steps, include_init=True)
