@@ -1,61 +1,70 @@
 {
+  "generate_dataset_py": {
+    "num_spatial_dims": 1,
     "pde": "KuramotoSivashinsky",
-  
-    "generate_dataset_py": {
-      "num_spatial_dims": 2,
-      "num_points": 200,
-      "num_channels": 1,
-      "x_domain_extent": 100.0,
-      "y_domain_extent": 100.0,
-      "dt_solver": 0.1,
-      "t_end": 1000.0,
-      "save_freq": 1,
-      "simulations": 10,
-      "plotted_sim": 5,
-      "ic": "RandomTruncatedFourierSeries",
-      "bc": "None",
-      "include_init": true
-    },
-  
-    "generation_details": {
-      "equation": "Kuramoto–Sivashinsky (fluid dynamics form)",
-      "library": "Exponax",
-      "library_url": "https://github.com/Ceyron/exponax/tree/main/exponax",
-      "spatial_discretization": "Fourier pseudo-spectral method",
-      "nonlinearity": "Conservative convection term: (1/2) * ∂ₓ(u²)",
-      "linear_terms": {
-        "second_order": "∂ₓₓ (destabilizing, ψ₁ > 0)",
-        "fourth_order": "∂ₓₓₓₓ (stabilizing, ψ₂ > 0)"
-    },
-  
-    "stepper_py": {
-      "cutoff": 5
-    },
-  
-    "exponax_stepper": {
-      "diffusivity": 0.1,
-      "convection_scale": 1.0,
-      "second_order_scale": 1.0,
-      "forth_order_scale": 1.0,
-      "single_channel": false,
-      "conservative": true,
-      "dealiasing_fraction": 0.6666666666666666,
-      "order": 2,
-      "zero_mode_fix": true
-    },
-  
-    "exponax_ic": {
-      "num_circle_points": 16,
-      "circle_radius": 1.0
-    },
-  
-    "dataset_global_statistics": {
-      "mean": -0.000003,
-      "std": 4.424566,
-      "min": -18.658789,
-      "max": 22.338400
+    "ic": "RandomTruncatedFourierSeries",
+    "bc": "None",
+    "x_domain_extent": 100.0,
+    "num_points": 200,
+    "num_channels": 1,
+    "dt_save": 0.0001,
+    "t_end": 100.0,
+    "save_freq": 1,
+    "simulations": 5,
+    "plotted_sim": 1,
+    "plot_sim": "True",
+    "stats": "True",
+    "seed": 42,
+    "nu": [0, 0.00001, 0.01], 
+    "pde_cmaps": {"Burgers": "RdBu"}
+  },
+
+  "generation_details": {
+    "equation": "Kuramoto–Sivashinsky (fluid dynamics form)",
+    "library": "Exponax",
+    "library_url": "https://github.com/Ceyron/exponax/tree/main/exponax",
+    "spatial_discretization": "Fourier pseudo-spectral method",
+    "nonlinearity": "Conservative convection term: (1/2) * ∂ₓ(u²)",
+    "linear_terms": {
+      "second_order": "∂ₓₓ (destabilizing, ψ₁ > 0)",
+      "fourth_order": "∂ₓₓₓₓ (stabilizing, ψ₂ > 0)"
     }
-    
+  },
+
+  "stepper_py": {
+    "cutoff": 5
+  },
+
+  "exponax_stepper": {
+    "diffusivity": 0.1,
+    "convection_scale": 1.0,
+    "second_order_scale": 1.0,
+    "forth_order_scale": 1.0,
+    "single_channel": false,
+    "conservative": true,
+    "dealiasing_fraction": 0.6666666666666666,
+    "order": 2,
+    "zero_mode_fix": true
+  },
+
+  "exponax_ic": {
+    "num_circle_points": 16,
+    "circle_radius": 1.0
+  },
+
+  "2d_animations": {
+    "mode": "physical",
+    "duration_sec": 10,
+    "fps": 20,
+    "dt_output": 1.0
+  },
+
+  "dataset_global_statistics": {
+    "channel_0": {
+      "mean": 0.000000,
+      "std": 0.562932,
+      "min": -4.766301,
+      "max": 5.909781
+    }
   }
-  }
-  
+}

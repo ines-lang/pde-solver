@@ -1,0 +1,49 @@
+{
+  "generate_dataset_py": {
+    "num_spatial_dims": 2,
+    "pde": "Kolmogorov",
+    "ic": "SpectralFlow",
+    "bc": "None",
+    "x_domain_extent": 100.0,
+    "num_points": 100,
+    "num_channels": 1,
+    "dt_save": 0.001,
+    "t_end": 100.0,
+    "save_freq": 100,
+    "simulations": 10,
+    "plotted_sim": 10,
+    "plot_sim": "True",
+    "stats": "True",
+    "seed": 42,
+    "Re": 250, 
+    "pde_cmaps": {"Burgers": "inferno"}
+  },
+
+  "generation_details": {
+    "library": "Controlling-Kolmogorov-Flow",
+    "library_url": "https://github.com/smokbel/Controlling-Kolmogorov-Flow",
+    "spatial_method": "Fourier pseudo-spectral method",
+  "dealiasing": "2/3-rule",
+  "time_integration": "Crank–Nicolson exponential Runge–Kutta",
+  "variant": "RK4-CN (low-storage 4th order IMEX scheme)",
+  "forcing": "Sinusoidal (Kolmogorov-type), controlled via wavenumber k",
+  "state_representation": "Vorticity in Fourier space, transformed to real space via irfftn"
+},
+
+"2d_animations": {
+  "mode": "physical",
+  "duration_sec": 10,
+  "fps": 20,
+  "dt_output": 1.0
+},
+
+"dataset_global_statistics": {
+  "channel_0": {
+    "mean": 0.000000,
+    "std": 0.562932,
+    "min": -4.766301,
+    "max": 5.909781
+  }
+  }
+  
+}

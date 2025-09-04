@@ -96,12 +96,10 @@ Total saved frames: n_saved = n_steps / save_freq + 1
 '''
 
 nu = [0, 0.00001, 0.01]  # For Burgers, KortewegDeVries, FisherKPP and SwiftHohenberg equations
-reactivity = 10 # for FisherKPP and SwiftHohenberg
-critical_wavenumber = 1.0 # critical wavenumber for SwiftHohenberg
-
-# For Gray Scott:
-feed_rate = 0.028
-kill_rate = 0.056
+reactivity = 10 # For FisherKPP and SwiftHohenberg
+critical_wavenumber = 1.0 # For SwiftHohenberg, critical wavenumber
+feed_rate = 0.028 # For Gray Scott
+kill_rate = 0.056 # For Gray Scott
 
 simulations = 2
 plotted_sim = 1

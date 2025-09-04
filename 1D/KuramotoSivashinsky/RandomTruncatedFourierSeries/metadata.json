@@ -1,7 +1,7 @@
 {
   "generate_dataset_py": {
     "num_spatial_dims": 1,
-    "pde": "KuramotoSivashinskyConservative",
+    "pde": "KuramotoSivashinsky",
     "ic": "RandomTruncatedFourierSeries",
     "bc": "None",
     "x_domain_extent": 100.0,

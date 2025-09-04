@@ -109,10 +109,8 @@ nu = [0, 0.00001, 0.01]  # For Burgers, KortewegDeVries, FisherKPP and SwiftHohe
 Re = 250  # For Kolmogorov equation
 reactivity = 0.6 # for FisherKPP and SwiftHohenberg
 critical_wavenumber = 1.0 # critical wavenumber for SwiftHohenberg
-
-# For Gray Scott:
-feed_rate = 0.028
-kill_rate = 0.056
+feed_rate = 0.028 # For Gray Scott
+kill_rate = 0.056 # For Gray Scott
 
 simulations = 10
 plotted_sim = 5
@@ -371,7 +369,7 @@ def create_animation(
     mode="physical",     # "physical" or "fixed"
     duration_sec=None,   # used only if mode="fixed"
     fps=20,
-    cmap="viridis",
+    cmap="viridis", # TODO CHECK IT
     vmin=None,
     vmax=None,
 ):
