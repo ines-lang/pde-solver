@@ -20,7 +20,7 @@ num_spatial_dims = 2
 Simulation parameters:
 
 pde : str
-    PDE to solve. Options: 'KuramotoSivashinsky' (ks), 'Burgers', 'Kolmogorov', 'KortewegDeVries' (KdV), 'GrayScott', 'FisherKPP'
+    PDE to solve. Options: 'KuramotoSivashinsky' (ks), 'Burgers', 'Kolmogorov', 'KortewegDeVries' (KdV), 'GrayScott', 'FisherKPP', 'NavierStokesVorticity'
 
 ic : str
     Initial condition function. Proposed options:
@@ -29,6 +29,7 @@ ic : str
     - For FisherKPP: 'ClampedFourier'
     - For Gray-Scott: 'RandomGaussianBlobs'
     - For Swift-Hohenberg: 'RandomTruncatedFourierSeries', 'GaussianRandomField' or 'DifffusedNoise'.
+    - For NavierStokesVorticity: ''
 
 bc : callable
     Boundary condition. (Unused As JAX computes spatial derivatives using the Fast Fourier Transform (FFT)
@@ -87,16 +88,16 @@ seed : int
     Random seed for reproducibility 
 """
 
-pde = "GrayScott" # options: 'KuramotoSivashinsky', 'Burgers', 'Kolmogorov', 'KortewegDeVries', 'GrayScott', 'FisherKPP', 'SwiftHohenberg'
+pde = "NavierStokesVorticity" # options: 'KuramotoSivashinsky', 'Burgers', 'Kolmogorov', 'KortewegDeVries', 'GrayScott', 'FisherKPP', 'SwiftHohenberg'
 ic = "RandomTruncatedFourierSeries" # options: see description above
 bc = None
 
 x_domain_extent = 2.5
 y_domain_extent = 2.5
 num_points = 128
-dt_save = 1
-t_end = 5000.0 
-save_freq = 50
+dt_save = 0.01
+t_end = 500.0 
+save_freq = 100
 
 ''' What it implies:
 Total steps: n_steps = t_end / dt_save
@@ -104,13 +105,15 @@ Output interval: dt_output = dt_save * save_freq
 Total saved frames: n_saved = n_steps / save_freq + 1
 '''
 
-nu = [0, 0.00001, 0.01]  # For Burgers, KortewegDeVries, FisherKPP and SwiftHohenberg equations
+nu = [0.01, 0.001, 0.0001]  # For Burgers, KortewegDeVries, FisherKPP and SwiftHohenberg equations
 # todo implement Re as nu 
-Re = 250  # For Kolmogorov equation
+Re = 250  # For Kolmogorov equation. Not used in Navier-Stokes as we are using viscosity (nu).
 reactivity = 0.6 # for FisherKPP and SwiftHohenberg
 critical_wavenumber = 1.0 # critical wavenumber for SwiftHohenberg
 feed_rate = 0.028 # For Gray Scott
 kill_rate = 0.056 # For Gray Scott
+vorticity_convection_scale = 1.0 # For Navier-Stokes equation
+drag = 0.0 # For Navier-Stokes equation
 
 simulations = 10
 plotted_sim = 5
@@ -127,6 +130,7 @@ pde_cmaps = {
     "KuramotoSivashinsky": "RdBu",
     "KortewegDeVries": "RdBu",
     "Kolmogorov": "inferno",
+    "NavierStokesVorticity": "RdBu",
 }
 default_cmap = "viridis"
 
@@ -151,6 +155,8 @@ all_trajectories, ic_hashes, trajectory_nus = generate_dataset(
     kill_rate=kill_rate,
     reactivity=reactivity,
     critical_wavenumber=critical_wavenumber,
+    vorticity_convection_scale=vorticity_convection_scale,
+    drag=drag,
     save_freq=save_freq,
     seed_list=seed_list,
     seed=seed)
@@ -188,6 +194,9 @@ def get_group_name(pde, seed, nu_val=None, ic_val=None, Re=None, feed_rate=None,
         return f"nu_{nu_val:.3f}_reactivity_{reactivity:.3f}"
     elif pde == "SwiftHohenberg":
         return f"reactivity_{reactivity:.3f}_k_{critical_wavenumber:.3f}"
+    elif pde == "NavierStokesVorticity":
+        return f"nu_{nu_val:.3e}" # if you plan to vary viscosity (nu) but keep convection scale and drag fixed
+        # return f"nu_{nu_val:.3e}_scale_{vorticity_convection_scale:.2f}_drag_{drag:.2f}" # if you plan to vary all three parameters
     else:
         return f"seed_{seed:03d}"
 
@@ -218,7 +227,7 @@ with h5py.File(data_path, "w") as h5file:
             grp.create_dataset(ds_name, data=u_xt)
             idx += 1
 
-    elif pde in ["Burgers", "KuramotoSivashinsky"]:
+    elif pde in ["Burgers", "KuramotoSivashinsky", "NavierStokesVorticity"]:
         for nu_val in nu:
             group_name = get_group_name(pde, 0, nu_val=nu_val)  # only use nu for group
             grp = h5file.require_group(group_name)
@@ -342,7 +351,7 @@ if stats:
 
 def get_sim_metadata(pde, n_sim, seed_list, nu=None, ic_hashes=None):
     """Return seed_val, nu_val, ic_val for the given PDE and simulation index."""
-    if pde in ["Burgers", "KuramotoSivashinsky", "FisherKPP"]:
+    if pde in ["Burgers", "KuramotoSivashinsky", "FisherKPP", "NavierStokesVorticity"]:
         nu_val = nu[n_sim % len(nu)]
         seed_val = seed_list[n_sim % len(seed_list)]
         ic_val = None

@@ -30,6 +30,8 @@ def generate_dataset(pde: str,
                      kill_rate: float,
                      reactivity: float,
                      critical_wavenumber: float,
+                     vorticity_convection_scale: float,
+                     drag: float,
                      seed_list:List,
                      seed: int):
 
@@ -354,5 +356,47 @@ def generate_dataset(pde: str,
         
         return all_trajectories, ic_hashes, trajectory_nus
     
+    elif pde == "NavierStokesVorticity":
+        ns_class = getattr(ex.stepper, pde)
+
+        for nu_val in nu:
+            ns_stepper = ns_class(
+                num_spatial_dims=num_spatial_dims,
+                domain_extent=x_domain_extent,
+                num_points=num_points,
+                dt=dt_save,
+                diffusivity=nu_val,
+                vorticity_convection_scale=vorticity_convection_scale,  
+                drag=drag, 
+                dealiasing_fraction=2/3,
+            )
+
+            for seed in seed_list:
+                key = jax.random.PRNGKey(seed)
+
+                # Initial condition: similar to other PDEs, use Fourier ICs
+                if ic == "RandomTruncatedFourierSeries":
+                    ic_class = ex.ic.RandomTruncatedFourierSeries(
+                        num_spatial_dims=num_spatial_dims, 
+                        cutoff=5
+                    )
+                    u_0 = ic_class(num_points=num_points, key=key)
+                else:
+                    raise ValueError(
+                        f"IC '{ic}' not implemented for PDE 'NavierStokesVorticity'. "
+                        f"Use 'RandomTruncatedFourierSeries'."
+                    )
+
+                # Rollout
+                trajectories = ex.rollout(ns_stepper, t_end, include_init=True)(u_0)
+                sampled_traj = trajectories[::save_freq]
+                all_trajectories.append(sampled_traj)
+
+                trajectory_nus.append(nu_val)
+                ic_hashes.append(f"sim_{len(ic_hashes)}")
+
+        all_trajectories = np.stack(all_trajectories)  # (N, T_sampled, C, X, Y)
+        return all_trajectories, ic_hashes, trajectory_nus
+
     else:
         raise ValueError(f"PDE '{pde}' not implemented.")

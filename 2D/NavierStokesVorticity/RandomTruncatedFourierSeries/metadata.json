@@ -1,0 +1,69 @@
+{
+    "generate_dataset_py": {
+      "num_spatial_dims": 2,
+      "pde": "NavierStokesVorticity",
+      "ic": "RandomTruncatedFourierSeries",
+      "bc": "None",
+      "x_domain_extent": 2.5,
+      "num_points": 128,
+      "num_channels": 1,
+      "dt_save": 0.01,
+      "t_end": 500.0,
+      "save_freq": 100,
+      "simulations": 10,
+      "plotted_sim": 5,
+      "plot_sim": "True",
+      "stats": "True",
+      "seed": 42,
+      "nu": [0.01, 0.003, 0.001],
+      "vorticity_convection_scale": 1.0,
+      "drag": 0.0,
+      "pde_cmaps": {
+        "NavierStokesVorticity": "RdBu"}
+    },
+  
+    "generation_details": {
+      "equation": "2D Incompressible Navier–Stokes in vorticity–streamfunction form",
+      "library": "Exponax (custom stepper)",
+      "library_url": "https://github.com/Ceyron/exponax/tree/main/exponax",
+      "spatial_discretization": "Fourier pseudo-spectral method with 2/3 dealiasing"
+    },
+  
+    "stepper_py": {
+      "cutoff": 5,
+      "scale": 0.3
+    },
+  
+    "exponax_stepper": {
+      "diffusivity": [0.01, 0.001, 0.0001],
+      "vorticity_convection_scale": 1.0,
+      "drag": 0.0,
+      "dealiasing_fraction": 0.6666666666666666,
+      "order": 2,
+      "num_circle_points": 16,
+      "circle_radius": 1.0
+    },
+  
+    "exponax_ic": {
+      "type": "RandomTruncatedFourierSeries",
+      "num_spatial_dims": 2,
+      "cutoff": 5
+    },
+  
+    "2d_animations": {
+      "mode": "vorticity",
+      "duration_sec": 10,
+      "fps": 20,
+      "dt_output": 1.0
+    },
+  
+    "dataset_global_statistics": {
+      "channel_0": {
+        "mean": 0.000000,
+        "std": 1.817264,
+        "min": -7.055449,
+        "max": 6.794626
+      }
+    }
+  }
+  
