@@ -1,0 +1,75 @@
+{
+    "generate_dataset_py": {
+        "num_spatial_dims": 2,
+        "pde": "CahnHilliard",
+        "ic": "RandomTruncatedFourierSeries",
+        "bc": "None",
+        "x_domain_extent": 2.5,
+        "num_points": 128,
+        "num_channels": 1,
+        "dt_save": 0.001,
+        "t_end": 300.0,
+        "save_freq": 100,
+        "simulations": 5,
+        "plotted_sim": 2,
+        "plot_sim": "True",
+        "stats": "True",
+        "seed": 42,
+        "nu": [0.01, 0.001, 0.005],
+        "gamma": 1e-3,
+        "c1": -1.0,
+        "c3": 1.0,
+        "pde_cmaps": { "CahnHilliard": "RdBu" }
+    },
+
+    "generation_details": {
+        "library": "Exponax",
+        "library_url": "https://github.com/Ceyron/exponax/tree/main/exponax",
+        "spatial_method": "Fourier pseudo-spectral method",
+        "dealiasing": "1/2-rule",
+        "time_integration": "Exponential time-differencing",
+        "variant": "ETDRK2 (second-order Runge–Kutta)"
+    },
+
+    "stepper_py": {
+        "cutoff": 5,
+        "scale": 0.1
+    },
+
+    "exponax_stepper": {
+        "diffusivity": "nu",
+        "gamma": 0.001,
+        "first_order_coefficient": -1.0,
+        "third_order_coefficient": 1.0,
+        "dealiasing_fraction": 0.5,
+        "order": 2
+    },
+
+    "exponax_ic": {
+        "description": "RandomTruncatedFourierSeries (scaled) with zero-mean enforcement for mass balance.",
+        "amplitude_range": [0.0, 1.0],
+        "angle_range": [0.0, 6.283185307179586],
+        "offset_range": [0.0, 0.0],
+        "scale": 0.1,
+        "std_one": false,
+        "max_one": false,
+        "method": "Sample truncated Fourier coefficients to synthesize a smooth field, scale amplitude by 0.1, then subtract its spatial mean to enforce zero mass. Transform back to physical space via inverse FFT.",
+        "source_module": "exponax.ic.RandomTruncatedFourierSeries + ScaledICGenerator"
+    },
+
+    "2d_animations": {
+        "mode": "fixed",
+        "duration_sec": 10,
+        "fps": 20,
+        "dt_output": 0.1
+    },
+
+    "dataset_global_statistics": {
+        "channel_0": {
+        "mean": 0.0,
+        "std": 0.0,
+        "min": 0.0,
+        "max": 0.0
+        }
+    }
+}

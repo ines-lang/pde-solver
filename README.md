@@ -21,7 +21,7 @@ By generating **high-resolution trajectories** of these PDEs, the tool provides 
 The following PDEs are currently supported:
 
 - **Burgers equation** – nonlinear advection + viscosity (turbulence/shocks)  
-- **Kuramoto–Sivashinsky equation** – chaotic and unstable dynamics  
+- **Kuramoto–Sivashinsky (KS)** – chaotic and unstable dynamics (1D/2D); **also includes the conservative KS variant in 1D**.
 - **Korteweg–de Vries equation** – soliton propagation  
 - **Kolmogorov flow (2D)** – spectral Navier–Stokes model with forcing  
 - **Gray–Scott model** – reaction–diffusion patterns (spots, stripes)  
@@ -114,17 +114,45 @@ To generate datasets, you need a working directory organized by **dimension** (e
 2D/
 ├── generate_dataset.py
 ├── stepper.py
-├── exponax/                 # Exponax solver code
-└── kolmogorov_flow/         # Kolmogorov flow solver code
-```
+├── exponax/    
+│   ├── etdrk/
+│   ├── ic/
+│   ├── metrics/
+│   └── ...        # other submodules
+└── kolmogorov_flow/
+    └── Controlling_Kolmogorov_Flow/
+        ├── equations/
+        ├── gym/
+        └── ...        # other submodules
 
+```
+### Solver Dependencies
+
+This project uses two external solver libraries:
+
+- **Exponax** (JAX pseudo-spectral solvers) — https://github.com/Ceyron/exponax  
+- **Controlling-Kolmogorov-Flow** (only used in `/2D`) — https://github.com/smokbel/Controlling-Kolmogorov-Flow
+
+#### Install
+
+```bash
+# Activate your environment
+conda activate jaxfluids  # or: conda env create -f environment.yml && conda activate pde-datasets
+
+# Install Exponax
+pip install "git+https://github.com/Ceyron/exponax.git"
+
+# Clone Kolmogorov Flow into the expected path
+git clone --depth 1 https://github.com/smokbel/Controlling-Kolmogorov-Flow.git \
+  2D/kolmogorov_flow/Controlling_Kolmogorov-Flow
 ---
 
 ## Notes and Recommendations
 
 - **Boundary conditions**: No explicit boundary conditions are needed, as the Exponax solver is implemented in JAX and uses the Fast Fourier Transform (FFT) internally. For consistency, set the boundary condition parameter to 'None'.
 - **Performance**: simulations are accelerated with JAX; NumPy is used for CPU-side dataset assembly.  
-- **3D support**: implemented for Burgers and KS; visualization utilities are still under development.  
+- **3D support**: implemented for Burgers and KS; visualization utilities are still under development. 
+- **Visualizations in 3D: CLI**:  The `viz_dataset.py` tool (in `3D/`) provides a command-line interface that can render time-series from HDF5 into PNG frames and MP4 videos.
 
 ---
 

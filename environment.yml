@@ -1,0 +1,28 @@
+name: pde-solver
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.11
+  - jax
+  - jaxlib
+  - numpy
+  - scipy
+  - matplotlib
+  - seaborn
+  - h5py
+  - openpyxl
+  - odfpy
+  - python-docx
+  - reportlab
+  - pip
+  - pip:
+      - gymnasium
+      - tqdm
+      - wandb
+      - moviepy
+      - imageio
+      - pillow
+      - pypandoc
+      - nbformat
+      - ipykernel

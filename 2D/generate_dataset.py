@@ -20,16 +20,16 @@ num_spatial_dims = 2
 Simulation parameters:
 
 pde : str
-    PDE to solve. Options: 'KuramotoSivashinsky' (ks), 'Burgers', 'Kolmogorov', 'KortewegDeVries' (KdV), 'GrayScott', 'FisherKPP', 'NavierStokesVorticity'
+    PDE to solve. Options: 'KuramotoSivashinsky' (ks), 'Burgers', 'Kolmogorov', 'KortewegDeVries' (KdV), 'GrayScott', 'FisherKPP', 'NavierStokesVorticity', 'AllenCahn', 'CahnHilliard', 'SwiftHohenberg'
 
 ic : str
     Initial condition function. Proposed options:
-    - For Burgers, KS and KdV: 'RandomTruncatedFourierSeries'
+    - For Burgers, KS, KdV, AllenCahn and CahnHilliard: 'RandomTruncatedFourierSeries'
     - For Kolmogorov: 'SpectralFlow'
     - For FisherKPP: 'ClampedFourier'
     - For Gray-Scott: 'RandomGaussianBlobs'
     - For Swift-Hohenberg: 'RandomTruncatedFourierSeries', 'GaussianRandomField' or 'DifffusedNoise'.
-    - For NavierStokesVorticity: ''
+    - For NavierStokesVorticity: '' #TODO
 
 bc : callable
     Boundary condition. (Unused As JAX computes spatial derivatives using the Fast Fourier Transform (FFT)
@@ -41,6 +41,7 @@ num_spatial_dims : int
 domain_extent : float
     Spatial domain extent (length of the domain in each spatial dimension)
     x_domain_extent and y_domain_extent must be the same for the solver to work.
+    In reality y_domain_extent is unused.
 
 num_points : int
     Number of points in each spatial dimension (spatial resolution)
@@ -72,6 +73,21 @@ reactivity : float
 critical_wavenumber : float 
     Critical wavenumber for Swift-Hohenberg equation. Also called k.
 
+vorticity_convection_scale : float
+    Vorticity convection scale (used only for Navier-Stokes equation).
+
+drag : float
+    Linear drag (used only for Navier-Stokes equation).
+
+gamma : float
+    Parameter for Allen-Cahn and Cahn-Hilliard equations.
+
+c1 : float 
+    Parameter for Allen-Cahn and Cahn-Hilliard equations. First order coefficient.
+
+c3 : float
+    Parameter for Allen-Cahn and Cahn-Hilliard equations. Third order coefficient.
+
 simulations : int
     Number of simulations to run
 
@@ -88,15 +104,15 @@ seed : int
     Random seed for reproducibility 
 """
 
-pde = "NavierStokesVorticity" # options: 'KuramotoSivashinsky', 'Burgers', 'Kolmogorov', 'KortewegDeVries', 'GrayScott', 'FisherKPP', 'SwiftHohenberg'
+pde = "CahnHilliard" # options: 'KuramotoSivashinsky', 'Burgers', 'Kolmogorov', 'KortewegDeVries', 'GrayScott', 'FisherKPP', 'SwiftHohenberg', 'NavierStokesVorticity', 'AllenCahn', 'CahnHilliard'
 ic = "RandomTruncatedFourierSeries" # options: see description above
 bc = None
 
 x_domain_extent = 2.5
-y_domain_extent = 2.5
+y_domain_extent = 2.5 # In reality it is unused, it is the same as x_domain_extent
 num_points = 128
-dt_save = 0.01
-t_end = 500.0 
+dt_save = 0.001
+t_end = 300.0 
 save_freq = 100
 
 ''' What it implies:
@@ -105,18 +121,25 @@ Output interval: dt_output = dt_save * save_freq
 Total saved frames: n_saved = n_steps / save_freq + 1
 '''
 
-nu = [0.01, 0.001, 0.0001]  # For Burgers, KortewegDeVries, FisherKPP and SwiftHohenberg equations
+nu = [0.01, 0.001, 0.005]  # For Burgers, KortewegDeVries, FisherKPP and SwiftHohenberg equations
 # todo implement Re as nu 
 Re = 250  # For Kolmogorov equation. Not used in Navier-Stokes as we are using viscosity (nu).
-reactivity = 0.6 # for FisherKPP and SwiftHohenberg
-critical_wavenumber = 1.0 # critical wavenumber for SwiftHohenberg
-feed_rate = 0.028 # For Gray Scott
-kill_rate = 0.056 # For Gray Scott
-vorticity_convection_scale = 1.0 # For Navier-Stokes equation
-drag = 0.0 # For Navier-Stokes equation
+reactivity = 0.6 # For FisherKPP and SwiftHohenberg
+# For SwiftHohenberg
+critical_wavenumber = 1.0
+# For Gray-Scott
+feed_rate = 0.028
+kill_rate = 0.056
+# For Navier-Stokes
+vorticity_convection_scale = 1.0
+drag = 0.0
+# For AllenCahn and CahnHilliard
+gamma = 1e-3
+c1 = -1.0
+c3 = 1.0
 
-simulations = 10
-plotted_sim = 5
+simulations = 5
+plotted_sim = 2
 plot_sim = True
 stats = True
 seed = 42
@@ -131,6 +154,8 @@ pde_cmaps = {
     "KortewegDeVries": "RdBu",
     "Kolmogorov": "inferno",
     "NavierStokesVorticity": "RdBu",
+    "AllenCahn": "RdBu",
+    "CahnHilliard": "RdBu",
 }
 default_cmap = "viridis"
 
@@ -157,6 +182,9 @@ all_trajectories, ic_hashes, trajectory_nus = generate_dataset(
     critical_wavenumber=critical_wavenumber,
     vorticity_convection_scale=vorticity_convection_scale,
     drag=drag,
+    gamma=gamma,
+    c1=c1,
+    c3=c3,
     save_freq=save_freq,
     seed_list=seed_list,
     seed=seed)
@@ -179,7 +207,7 @@ os.makedirs(plots_path, exist_ok=True)
 # Create the h5py file and save the dataset with groups
 
 # Function to determine group name based on PDE and its parameters
-def get_group_name(pde, seed, nu_val=None, ic_val=None, Re=None, feed_rate=None, kill_rate=None, reactivity=None, critical_wavenumber=None):
+def get_group_name(pde, seed, nu_val=None, ic_val=None, Re=None, feed_rate=None, kill_rate=None, reactivity=None, critical_wavenumber=None, gamma=None):
     if pde == "Burgers":
         return f"nu_{nu_val:.3f}"
     elif pde == "KuramotoSivashinsky":  # with viscosity
@@ -197,6 +225,10 @@ def get_group_name(pde, seed, nu_val=None, ic_val=None, Re=None, feed_rate=None,
     elif pde == "NavierStokesVorticity":
         return f"nu_{nu_val:.3e}" # if you plan to vary viscosity (nu) but keep convection scale and drag fixed
         # return f"nu_{nu_val:.3e}_scale_{vorticity_convection_scale:.2f}_drag_{drag:.2f}" # if you plan to vary all three parameters
+    elif pde == "AllenCahn":
+        return f"nu_{nu_val:.3e}"
+    elif pde == "CahnHilliard":
+        return f"nu_{nu_val:.3e}_gamma_{gamma:.1e}"  
     else:
         return f"seed_{seed:03d}"
 
@@ -227,7 +259,7 @@ with h5py.File(data_path, "w") as h5file:
             grp.create_dataset(ds_name, data=u_xt)
             idx += 1
 
-    elif pde in ["Burgers", "KuramotoSivashinsky", "NavierStokesVorticity"]:
+    elif pde in ["Burgers", "KuramotoSivashinsky", "NavierStokesVorticity", "AllenCahn"]:
         for nu_val in nu:
             group_name = get_group_name(pde, 0, nu_val=nu_val)  # only use nu for group
             grp = h5file.require_group(group_name)
@@ -276,6 +308,19 @@ with h5py.File(data_path, "w") as h5file:
                 del grp[ds_name]
             grp.create_dataset(ds_name, data=u_xt)
             idx += 1
+    
+    elif pde == "CahnHilliard":
+        for nu_val in nu:
+            group_name = get_group_name(pde, 0, nu_val=nu_val, gamma=gamma)
+            grp = h5file.require_group(group_name)
+            for seed in seed_list:
+                u_xt = all_trajectories[idx]
+                ds_name = f"velocity_seed{seed:03d}"
+                if ds_name in grp:
+                    del grp[ds_name]
+                grp.create_dataset(ds_name, data=u_xt)
+                idx += 1
+
 
     print(f"File created at {data_path}")
 
@@ -351,7 +396,7 @@ if stats:
 
 def get_sim_metadata(pde, n_sim, seed_list, nu=None, ic_hashes=None):
     """Return seed_val, nu_val, ic_val for the given PDE and simulation index."""
-    if pde in ["Burgers", "KuramotoSivashinsky", "FisherKPP", "NavierStokesVorticity"]:
+    if pde in ["Burgers", "KuramotoSivashinsky", "FisherKPP", "NavierStokesVorticity", "AllenCahn", "CahnHilliard"]:
         nu_val = nu[n_sim % len(nu)]
         seed_val = seed_list[n_sim % len(seed_list)]
         ic_val = None

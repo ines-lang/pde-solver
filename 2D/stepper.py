@@ -32,6 +32,9 @@ def generate_dataset(pde: str,
                      critical_wavenumber: float,
                      vorticity_convection_scale: float,
                      drag: float,
+                     gamma: float,
+                     c1: float,
+                     c3: float,
                      seed_list:List,
                      seed: int):
 
@@ -396,6 +399,97 @@ def generate_dataset(pde: str,
                 ic_hashes.append(f"sim_{len(ic_hashes)}")
 
         all_trajectories = np.stack(all_trajectories)  # (N, T_sampled, C, X, Y)
+        return all_trajectories, ic_hashes, trajectory_nus
+
+    elif pde == "AllenCahn":
+        ac_class = getattr(ex.stepper.reaction, pde)
+
+        for nu_val in nu:
+            ac_stepper = ac_class(
+                num_spatial_dims=num_spatial_dims,
+                domain_extent=x_domain_extent,
+                num_points=num_points,
+                dt=dt_save,
+                diffusivity=nu_val,               # ν
+                first_order_coefficient=c1,      # c1
+                third_order_coefficient=c3,     # c3 (double well)
+                dealiasing_fraction=1/2,          # cubic nonlinearity
+                order=2,
+            )
+
+            for seed in seed_list:
+                key = jax.random.PRNGKey(seed)
+
+                # IC: small-amplitude smooth field in [-~0.5, ~0.5]
+                if ic == "RandomTruncatedFourierSeries":
+                    base_ic = ex.ic.RandomTruncatedFourierSeries(
+                        num_spatial_dims=num_spatial_dims, cutoff=5
+                    )
+                    ic_gen = ex.ic.ScaledICGenerator(base_ic, scale=0.5)
+                else:
+                    raise ValueError(
+                        f"IC '{ic}' not implemented for PDE 'AllenCahn'. "
+                        f"Use 'RandomTruncatedFourierSeries'."
+                    )
+
+                u_0 = ic_gen(num_points=num_points, key=key)  # (1, X, Y)
+
+                trajectories = ex.rollout(ac_stepper, t_end, include_init=True)(u_0)
+                sampled_traj = trajectories[::save_freq]
+                all_trajectories.append(sampled_traj)
+
+                trajectory_nus.append(nu_val)
+                ic_hashes.append(f"sim_{len(ic_hashes)}")
+
+        all_trajectories = np.stack(all_trajectories)  # (N, T, C, X, Y)
+        return all_trajectories, ic_hashes, trajectory_nus
+
+
+    elif pde == "CahnHilliard":
+        ch_class = getattr(ex.stepper.reaction, pde)
+
+        for nu_val in nu:
+            ch_stepper = ch_class(
+                num_spatial_dims=num_spatial_dims,
+                domain_extent=x_domain_extent,
+                num_points=num_points,
+                dt=dt_save,
+                diffusivity=nu_val,           # ν (mobility-like prefactor here)
+                gamma=gamma,                  # γ (interfacial energy scale)
+                first_order_coefficient=c1,   # c1
+                third_order_coefficient=c3,   # c3
+                dealiasing_fraction=1/2,
+                order=2,
+            )
+
+            for seed in seed_list:
+                key = jax.random.PRNGKey(seed)
+
+                # IC: small, zero-mean field (mass conservation is important)
+                if ic == "RandomTruncatedFourierSeries":
+                    base_ic = ex.ic.RandomTruncatedFourierSeries(
+                        num_spatial_dims=num_spatial_dims, cutoff=5
+                    )
+                    ic_gen = ex.ic.ScaledICGenerator(base_ic, scale=0.1)
+                else:
+                    raise ValueError(
+                        f"IC '{ic}' not implemented for PDE 'AllenCahn'. "
+                        f"Use 'RandomTruncatedFourierSeries'."
+                    )
+
+                u_0 = ic_gen(num_points=num_points, key=key)  # (1, X, Y)
+
+                # Enforce zero mean so phase fraction is balanced
+                u_0 = u_0 - jnp.mean(u_0)
+
+                trajectories = ex.rollout(ch_stepper, t_end, include_init=True)(u_0)
+                sampled_traj = trajectories[::save_freq]
+                all_trajectories.append(sampled_traj)
+
+                trajectory_nus.append(nu_val)
+                ic_hashes.append(f"sim_{len(ic_hashes)}")
+
+        all_trajectories = np.stack(all_trajectories)  # (N, T, C, X, Y)
         return all_trajectories, ic_hashes, trajectory_nus
 
     else:

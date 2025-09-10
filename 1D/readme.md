@@ -8,3 +8,5 @@ Carefull: KdV solution explodes from some simulations. dataset_stats.py has been
 
 # TODO:
 - Add the graphic legend of velocity to check the values when the velocity ranges. Add to the code in generate_dataset and run everthing again.
+
+- channel to the plots name

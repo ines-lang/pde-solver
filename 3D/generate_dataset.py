@@ -39,6 +39,7 @@ num_spatial_dims : int
 domain_extent : float
     Spatial domain extent (length of the domain in each spatial dimension)
     x_domain_extent, y_domain_extent and z_domain_extent must be the same for the solver to work.
+    In reality y_domain_extent and z_domain_extent is unused.
 
 num_points : int
     Number of points in each spatial dimension (spatial resolution)
@@ -88,8 +89,8 @@ ic = "RandomTruncatedFourierSeries" # options: see description above
 bc = None
 
 x_domain_extent = 32.0
-y_domain_extent = 32.0 
-z_domain_extent = 32.0 
+y_domain_extent = 32.0 # In reality it is unused, it is the same as x_domain_extent
+z_domain_extent = 32.0 # In reality it is unused, it is the same as x_domain_extent
 num_points = 64
 dt_save = 0.001 # integrator step
 t_end = 1.0 # final physical time
