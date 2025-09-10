@@ -54,21 +54,18 @@ Running `generate_dataset.py` automatically creates a directory structure organi
 │       ├── metadata.json
 │       ├── dataset_stats.py
 │       └── plots/
-│           └── seed_000_channel_0.mp4  # 
+│           └── seed_000_channel_0.mp4 
 ```
 
 - **`dataset.h5`**  
   The main simulation output. Each group corresponds to a PDE parameterization (e.g. `nu_0.010`, `Re_250.000`, `feed_0.028_kill_0.056`). Inside each group, trajectories are saved as datasets (`velocity_seed000`, `state_seed001`, etc.), with shape:
-
-(T, C, H[, W[, D]])
-
-where `T` = time steps, `C` = channels, `H/W/D` = spatial dimensions.
+  
+  (T, C, H[, W[, D]])
+  
+  where `T` = time steps, `C` = channels, `H/W/D` = spatial dimensions.
 
 - **`plots/`**  
-Contains `.png` snapshots and `.mp4` animations of selected simulations, grouped by channel. This allows quick inspection of qualitative dynamics.
-
-- **`dataset_stats.py`**  
-Utility script to compute and print dataset statistics (mean, std, min, max) per channel.
+Contains `.png` snapshots and `.mp4` animations of some simulations, grouped by channel. This allows quick inspection of qualitative dynamics.
 
 - **`metadata.json`**  
 A structured record of all parameters, solver details, initial condition generation, and global statistics. This ensures full reproducibility and makes dataset sharing easier.
@@ -92,24 +89,33 @@ Each dataset is grouped by PDE parameters (e.g., viscosity, Reynolds number, rea
 - Burgers: `nu_0.010`  
 - Kolmogorov: `Re_250.000`  
 - Gray–Scott: `feed_0.028_kill_0.056`  
-- Cahn–Hilliard: `nu_1.0e-02_gamma_1.0e-03`  
+- Cahn–Hilliard: `nu_1.0e-02_gamma_1.0e-03`  # TODO: check if it is with e notation
 
 ---
 
 ## File Structure
 
-- **`generate_dataset.py`** – Main script, user-facing entry point  
-- **`stepper.py`** – Defines the PDE steppers, ICs, and rollout logic  
+To generate datasets, you need a working directory organized by **dimension** (e.g., `1D/`, `2D/`, or `3D/`). Inside each dimension folder, place the following components:
 
-Example output:
+- **`generate_dataset.py`**  
+  Main script and user-facing entry point. It parses parameters, launches simulations, saves results, and produces plots and statistics.
+
+- **`stepper.py`**  
+  Defines the PDE-specific steppers, initial conditions, and rollout logic for each supported equation.
+
+- **Solver dependencies**  
+  The code relies on two external solver libraries:
+  - [**Exponax**](https://github.com/exponax/exponax): a JAX-based pseudo-spectral solver framework.  
+  - [**Controlling-Kolmogorov-Flow**](https://github.com/smokbel/Controlling-Kolmogorov-Flow): specialized 2D Kolmogorov flow solver.
+
+### Example layout for 2D simulations
+
 ```
 2D/
-├── Burgers/
-│ └── RandomTruncatedFourierSeries/
-│ ├── dataset.h5
-│ ├── metadata.json
-│ └── plots/
-│ └── seed_000_channel_0.mp4
+├── generate_dataset.py
+├── stepper.py
+├── exponax/                 # Exponax solver code
+└── kolmogorov_flow/         # Kolmogorov flow solver code
 ```
 
 ---
