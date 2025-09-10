@@ -2,32 +2,50 @@
 
 ## Description
 
-This project enables the generation of synthetic datasets for one-, two-, and three-dimensional partial differential equations (PDEs) using fully customizable parameters. Currently, for all tre-dimensions, it supports two foundational PDEs: the **Burgers equation** and the **Kuramoto–Sivashinsky (KS) equation**, both of which are known for exhibiting rich spatiotemporal behaviors such as chaos, shock development, and pattern formation.
+This project enables the generation of synthetic datasets for one-, two-, and three-dimensional partial differential equations (PDEs) with **fully customizable parameters**. The implementation covers a wide range of classical PDEs that exhibit turbulence, pattern formation, chaos, shocks, and reaction–diffusion dynamics.
 
-The **Burgers equation** is a prototypical model for studying turbulence, nonlinear wave propagation, and shock dynamics. It also serves as a simplified analog of the Navier–Stokes equations, making it a valuable testbed for numerical methods. The **Kuramoto–Sivashinsky equation**, on the other hand, captures key features of chaotic and unstable dynamics, making it ideal for benchmarking surrogate models and forecasting algorithms.
+The solver is built on [**Exponax**](https://github.com/exponax/exponax) (JAX-based spectral solvers) and extended with a specialized implementation of the **2D Kolmogorov flow** solver ([Controlling-Kolmogorov-Flow](https://github.com/smokbel/Controlling-Kolmogorov-Flow)).
 
-For 2d it also solves the PDE Kolmogorov Equations that are a set of partial differential equations that play a crucial role in the field of stochastic processes. The solver used in this case was: https://github.com/smokbel/Controlling-Kolmogorov-Flow.
-
-By generating high-resolution datasets from these equations, this tool provides a foundation for research in scientific machine learning, data-driven modeling, and numerical analysis of nonlinear systems.
+By generating **high-resolution trajectories** of these PDEs, the tool provides a foundation for research in:
+- Scientific machine learning  
+- Surrogate modeling and forecasting  
+- Operator learning  
+- Data-driven analysis of nonlinear dynamics  
 
 > GitHub repository: [https://github.com/ines-lang/pde-solver](https://github.com/ines-lang/pde-solver)
 
 ---
-## Data
 
-The data that is obtained as an output can be found here: https://huggingface.co/datasets/isuarez/pde_collection.
+## Supported PDEs
 
-## File Structure
+The following PDEs are currently supported:
 
-The simulation pipeline is organized as follows:
+- **Burgers equation** – nonlinear advection + viscosity (turbulence/shocks)  
+- **Kuramoto–Sivashinsky equation** – chaotic and unstable dynamics  
+- **Korteweg–de Vries equation** – soliton propagation  
+- **Kolmogorov flow (2D)** – spectral Navier–Stokes model with forcing  
+- **Gray–Scott model** – reaction–diffusion patterns (spots, stripes)  
+- **Fisher–KPP equation** – traveling wave fronts and population dynamics  
+- **Swift–Hohenberg equation** – pattern formation near criticality  
+- **Navier–Stokes (vorticity form)** – 2D turbulence with convection and drag  
+- **Allen–Cahn equation** – phase separation with double-well potential  
+- **Cahn–Hilliard equation** – phase separation with mass conservation  
 
-- **`generate_dataset.py`** – Main script; handles user input and coordinates execution.
-- **`stepper.py`** – Parses parameters and initializes the PDE simulation.
+Each PDE comes with **compatible initial conditions (ICs)** such as:
+- `RandomTruncatedFourierSeries`  
+- `SpectralFlow` (Kolmogorov)  
+- `RandomGaussianBlobs` (Gray–Scott)  
+- `ClampedFourier` (Fisher–KPP)  
+- `GaussianRandomField`, `DiffusedNoise` (Swift–Hohenberg)  
 
-When executed, the code creates a directory structure based on the selected PDE and initial condition. Example output structure:
-Output structure:
+---
+
+## Data Organization
+
+Running `generate_dataset.py` automatically creates a directory structure organized by PDE and initial condition (IC). The hierarchy looks like this:
+
 ```
-1D/
+2D/
 ├── dataset_generator.py
 ├── stepper.py
 ├── pde/
@@ -36,29 +54,82 @@ Output structure:
 │       ├── metadata.json
 │       ├── dataset_stats.py
 │       └── plots/
-│           └── seed_i.png  # for 1D
+│           └── seed_000_channel_0.mp4  # 
 ```
 
-- Simulation trajectories are stored in an HDF5 file (`dataset.h5`) using keys like `velocity_000`, `velocity_001`, ..., `velocity_NNN`.
-- Visualization outputs are saved in the `plots/` folder.
-- Summary statistics (min, max, mean, std) are generated using `dataset_stats.py`.
-- All dataset generation parameters are stored in `metadata.json`.
+- **`dataset.h5`**  
+  The main simulation output. Each group corresponds to a PDE parameterization (e.g. `nu_0.010`, `Re_250.000`, `feed_0.028_kill_0.056`). Inside each group, trajectories are saved as datasets (`velocity_seed000`, `state_seed001`, etc.), with shape:
 
-The generic shape of the dataset is in the format: **B × T × C × H [× W [× D]]**, where:
-- **B**: number of simulations (batch size),
-- **T**: number of time steps,
-- **C**: number of channels (e.g. velocity components),
-- **H/W/D**: spatial dimensions.
+(T, C, H[, W[, D]])
+
+where `T` = time steps, `C` = channels, `H/W/D` = spatial dimensions.
+
+- **`plots/`**  
+Contains `.png` snapshots and `.mp4` animations of selected simulations, grouped by channel. This allows quick inspection of qualitative dynamics.
+
+- **`dataset_stats.py`**  
+Utility script to compute and print dataset statistics (mean, std, min, max) per channel.
+
+- **`metadata.json`**  
+A structured record of all parameters, solver details, initial condition generation, and global statistics. This ensures full reproducibility and makes dataset sharing easier.
+
+---
+
+## Output Format
+
+Simulation trajectories are stored as HDF5 datasets with the structure:
+
+B × T × C × H [× W [× D]]
+
+
+- **B**: number of simulations (batch size)  
+- **T**: number of saved time steps  
+- **C**: number of channels (scalar field(s) per PDE)  
+- **H/W/D**: spatial dimensions  
+
+Each dataset is grouped by PDE parameters (e.g., viscosity, Reynolds number, reaction rates). Example group names:
+
+- Burgers: `nu_0.010`  
+- Kolmogorov: `Re_250.000`  
+- Gray–Scott: `feed_0.028_kill_0.056`  
+- Cahn–Hilliard: `nu_1.0e-02_gamma_1.0e-03`  
+
+---
+
+## File Structure
+
+- **`generate_dataset.py`** – Main script, user-facing entry point  
+- **`stepper.py`** – Defines the PDE steppers, ICs, and rollout logic  
+
+Example output:
+```
+2D/
+├── Burgers/
+│ └── RandomTruncatedFourierSeries/
+│ ├── dataset.h5
+│ ├── metadata.json
+│ └── plots/
+│ └── seed_000_channel_0.mp4
+```
 
 ---
 
 ## Notes and Recommendations
 
-- The initial condition **`RandomTruncatedFourierSeries`** is currently the most stable and representative choice for generating robust training data.
-- No explicit boundary conditions are needed, as the Exponax solver is implemented in **JAX** and uses the **Fast Fourier Transform (FFT)** internally. For consistency, set the boundary condition parameter to `'None'`.
+- **Boundary conditions**: No explicit boundary conditions are needed, as the Exponax solver is implemented in JAX and uses the Fast Fourier Transform (FFT) internally. For consistency, set the boundary condition parameter to 'None'.
+- **Performance**: simulations are accelerated with JAX; NumPy is used for CPU-side dataset assembly.  
+- **3D support**: implemented for Burgers and KS; visualization utilities are still under development.  
+
+---
+
+## Data Availability
+
+Public datasets generated with this code are available on Hugging Face:  
+👉 [isuarez/pde_collection](https://huggingface.co/datasets/isuarez/pde_collection)
 
 ---
 
 ## License
 
-This project is released under the [CC-BY 4.0 License](https://creativecommons.org/licenses/by/4.0/). You are free to use, modify, and distribute the code with appropriate attribution.
+This project is released under the [CC-BY 4.0 License](https://creativecommons.org/licenses/by/4.0/).  
+You are free to use, modify, and distribute the code with appropriate attribution.
