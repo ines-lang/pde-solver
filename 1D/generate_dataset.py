@@ -20,11 +20,11 @@ pde : str
     PDE to solve. Options: 'KuramotoSivashinskyConservative', 'KuramotoSivashinsky', 'Burgers', 'KortewegDeVries'
 
 ic : str
-    Initial condition function. Proposed options:
-    - For Burgers, KS and KdV: 'RandomTruncatedFourierSeries'
-    - For FisherKPP: 'ClampedFourier'
-    - For Gray-Scott: 'RandomGaussianBlobs'
-    - For Swift-Hohenberg: 'RandomTruncatedFourierSeries', 'GaussianRandomField' or 'DifffusedNoise'.
+    Initial condition function. Options:
+    - For Burgers, KS and KdV: 'RandomTruncatedFourierSeries' works good but others are also possible.
+    - For Gray-Scott: 'RandomGaussianBlobs' is implemented and shows good results.
+    - For FisherKPP: 'ClampedFourier' is implemented and shows good results.
+    - For Swift-Hohenberg: 'RandomTruncatedFourierSeries', 'GaussianRandomField' and 'DifffusedNoise' are implemented.
 
 bc : callable
     Boundary condition. (Unused As JAX computes spatial derivatives using the Fast Fourier Transform (FFT)

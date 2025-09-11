@@ -20,11 +20,11 @@
   },
 
   "generation_details": {
-    "equation": "Kuramoto–Sivashinsky (fluid dynamics form)",
+    "equation": "Kuramoto–Sivashinsky (non-conservative / combustion form)",
     "library": "Exponax",
     "library_url": "https://github.com/Ceyron/exponax/tree/main/exponax",
     "spatial_discretization": "Fourier pseudo-spectral method",
-    "nonlinearity": "Conservative convection term: (1/2) * ∂ₓ(u²)",
+    "nonlinearity": "Gradient-norm term: (1/2) * (uₓ)²",
     "linear_terms": {
       "second_order": "∂ₓₓ (destabilizing, ψ₁ > 0)",
       "fourth_order": "∂ₓₓₓₓ (stabilizing, ψ₂ > 0)"
@@ -39,7 +39,7 @@
     "diffusivity": 0.1,
     "convection_scale": 1.0,
     "second_order_scale": 1.0,
-    "forth_order_scale": 1.0,
+    "fourth_order_scale": 1.0,
     "single_channel": false,
     "conservative": true,
     "dealiasing_fraction": 0.6666666666666666,

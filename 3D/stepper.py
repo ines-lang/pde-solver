@@ -47,6 +47,7 @@ def generate_dataset(pde: str,
                 key = jax.random.PRNGKey(seed)
                 ic_class = getattr(ex.ic, ic)
                 ic_instance = ic_class(num_spatial_dims=num_spatial_dims, cutoff=5)
+                
                 # --- Generate 3 ICs per seed ---
                 keys = jax.random.split(key, 3)
                 u_list = [ic_instance(num_points=num_points, key=k) for k in keys]
@@ -56,6 +57,7 @@ def generate_dataset(pde: str,
                         u_list[i] = u_list[i][0]
 
                 u_0 = jnp.stack(u_list)  # shape: (3, X, Y, Z)
+                
                 ic_hashes.append(hash(u_0.tobytes()))
                 
                 # Rollout

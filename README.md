@@ -52,7 +52,6 @@ Running `generate_dataset.py` automatically creates a directory structure organi
 │   └── ic/
 │       ├── dataset.h5
 │       ├── metadata.json
-│       ├── dataset_stats.py
 │       └── plots/
 │           └── seed_000_channel_0.mp4 
 ```
@@ -106,7 +105,7 @@ To generate datasets, you need a working directory organized by **dimension** (e
 - **Solver dependencies**  
   The code relies on two external solver libraries:
   - [**Exponax**](https://github.com/exponax/exponax): a JAX-based pseudo-spectral solver framework.  
-  - [**Controlling-Kolmogorov-Flow**](https://github.com/smokbel/Controlling-Kolmogorov-Flow): specialized 2D Kolmogorov flow solver.
+  - [**Controlling-Kolmogorov-Flow**](https://github.com/smokbel/Controlling-Kolmogorov-Flow): only used in `/2D`.
 
 ### Example layout for 2D simulations
 
@@ -126,12 +125,7 @@ To generate datasets, you need a working directory organized by **dimension** (e
         └── ...        # other submodules
 
 ```
-### Solver Dependencies
-
-This project uses two external solver libraries:
-
-- **Exponax** (JAX pseudo-spectral solvers) — https://github.com/Ceyron/exponax  
-- **Controlling-Kolmogorov-Flow** (only used in `/2D`) — https://github.com/smokbel/Controlling-Kolmogorov-Flow
+Where folders containing the solvers are saved at the same level as the python running files.
 
 #### Install
 
@@ -145,25 +139,28 @@ pip install "git+https://github.com/Ceyron/exponax.git"
 # Clone Kolmogorov Flow into the expected path
 git clone --depth 1 https://github.com/smokbel/Controlling-Kolmogorov-Flow.git \
   2D/kolmogorov_flow/Controlling_Kolmogorov-Flow
+```
 ---
 
 ## Notes and Recommendations
 
 - **Boundary conditions**: No explicit boundary conditions are needed, as the Exponax solver is implemented in JAX and uses the Fast Fourier Transform (FFT) internally. For consistency, set the boundary condition parameter to 'None'.
+- Although the user interface allows the definition of `y_domain_extent` and `z_domain_extent` for 2D and 3D cases, the solvers internally rely only on `x_domain_extent`, which is treated as the full spatial extent of the domain. As a result, the effective domain size is always determined by `x_domain_extent`, and editing `y_domain_extent` or `z_domain_extent` has no effect on the simulation and it is not really necesarily.
 - **Performance**: simulations are accelerated with JAX; NumPy is used for CPU-side dataset assembly.  
+- Each simulation is initialized with a user-defined seed from the `seed_list`. Reproducibility is guaranteed only if the same `seed_list` is used across runs. By default, the list starts from `seed=42`, but this can be customized by the user.
+
 - **3D support**: implemented for Burgers and KS; visualization utilities are still under development. 
 - **Visualizations in 3D: CLI**:  The `viz_dataset.py` tool (in `3D/`) provides a command-line interface that can render time-series from HDF5 into PNG frames and MP4 videos.
 
 ---
 
-## Data Availability
+<!-- ## Data Availability
 
 Public datasets generated with this code are available on Hugging Face:  
 👉 [isuarez/pde_collection](https://huggingface.co/datasets/isuarez/pde_collection)
 
----
+--- -->
 
 ## License
 
-This project is released under the [CC-BY 4.0 License](https://creativecommons.org/licenses/by/4.0/).  
-You are free to use, modify, and distribute the code with appropriate attribution.
+This project is released under the [CC-BY 4.0 License](https://creativecommons.org/licenses/by/4.0/).

@@ -176,10 +176,8 @@ def generate_dataset(pde: str,
             # Add class-specific arguments if applicable
             if ic == "RandomTruncatedFourierSeries":
                 common_kwargs["cutoff"] = 5  
-
             # Instantiate the initial condition generator
             ic_instance = ic_class(**common_kwargs)
-
             # Generate the initial condition with additional parameters
             u_0 = ic_instance(num_points=num_points, key=key)
 
@@ -199,7 +197,6 @@ def generate_dataset(pde: str,
 
             trajectory_nus.append(f"sim_{len(trajectory_nus)}")  # dummy id
 
-            
         all_trajectories = np.stack(all_trajectories)  # shape: (N, T_sampled, C, X)
         # Move channel dimension to position 1
         all_trajectories = np.moveaxis(all_trajectories, -2, 1)  # (N, C, T, X)
@@ -221,12 +218,10 @@ def generate_dataset(pde: str,
         for seed in seed_list:
             # Generate initial condition
             key = jax.random.PRNGKey(seed)
-
             # IC: random Gaussian blobs
             # Check IC
             if ic != "RandomGaussianBlobs":
                 raise ValueError(f"IC '{ic}' not implemented for PDE 'GrayScott'. Use 'RandomGaussianBlobs'.")
-
             v_gen = ex.ic.RandomGaussianBlobs(
                 num_spatial_dims=num_spatial_dims,
                 domain_extent=x_domain_extent,
@@ -234,13 +229,10 @@ def generate_dataset(pde: str,
                 position_range=(0.2, 0.8),  # if config != "gs-kappa" else (0.4, 0.6),
                 variance_range=(0.005, 0.01),
             )
-
             # Actually sample the field
             v_field = v_gen(num_points=num_points, key=key)   # shape (1, X, Y)
-
             # Build u field as complement
             u_field = 1.0 - v_field                           # shape (1, X, Y)
-
             # Concatenate to get initial state
             u_0 = jnp.concatenate([u_field, v_field], axis=0)  # shape (2, X, Y)
 
@@ -333,7 +325,7 @@ def generate_dataset(pde: str,
 
             u_0 = ic_gen(num_points=num_points, key=key)  # shape (1, X, Y)
 
-            # ---- Rollout ----
+            # Rollout
             trajectories = ex.rollout(swift_stepper, t_end, include_init=True)(u_0)
             sampled_traj = trajectories[::save_freq]
             all_trajectories.append(sampled_traj)

@@ -24,11 +24,8 @@ pde : str
 
 ic : str
     Initial condition function. Proposed options:
-    - For Burgers, KS and KdV: 'RandomTruncatedFourierSeries'
-    - For FisherKPP: 'ClampedFourier'
-    - For Gray-Scott: 'RandomGaussianBlobs'
-    - For Swift-Hohenberg: 'RandomTruncatedFourierSeries', 'GaussianRandomField' or 'DifffusedNoise'.
-
+    - For Burgers, KS and KdV: 'RandomTruncatedFourierSeries' is implemented but others are also possible.
+    
 bc : callable
     Boundary condition. (Unused As JAX computes spatial derivatives using the Fast Fourier Transform (FFT)
     which assumes periodicity, kept for consistency)

@@ -24,12 +24,13 @@ pde : str
 
 ic : str
     Initial condition function. Proposed options:
-    - For Burgers, KS, KdV, AllenCahn and CahnHilliard: 'RandomTruncatedFourierSeries'
-    - For Kolmogorov: 'SpectralFlow'
-    - For FisherKPP: 'ClampedFourier'
-    - For Gray-Scott: 'RandomGaussianBlobs'
-    - For Swift-Hohenberg: 'RandomTruncatedFourierSeries', 'GaussianRandomField' or 'DifffusedNoise'.
-    - For NavierStokesVorticity: '' #TODO
+    - For Burgers, KS, KdV: 'RandomTruncatedFourierSeries' works good but others are also possible.
+    - For Kolmogorov: 'SpectralFlow' is the only one implemented so far.
+    - For Gray-Scott: 'RandomGaussianBlobs' is implemented and shows good results.
+    - For FisherKPP: 'ClampedFourier' is implemented and shows good results.
+    - For Swift-Hohenberg: 'RandomTruncatedFourierSeries', 'GaussianRandomField' and 'DifffusedNoise' are implemented.
+    - For NavierStokesVorticity: 'RandomTruncatedFourierSeries' is implemented and shows good results.
+    - For AllenCahn and CahnHilliard: 'RandomTruncatedFourierSeries' is implemented and shows good results.
 
 bc : callable
     Boundary condition. (Unused As JAX computes spatial derivatives using the Fast Fourier Transform (FFT)
