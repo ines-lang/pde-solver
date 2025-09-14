@@ -189,10 +189,10 @@ def generate_dataset(pde: str,
         step_to_save = save_freq
 
         for seed in seed_list:
-            flow = FlowConfig(grid_size=(num_points, num_points))
-            print("grid_size (should output (100, 100)) :", flow.grid_size)
+            flow = FlowConfig(grid_size=(num_points, num_points)) # spatial resolution (Nx, Ny)
+            print("grid_size:", flow.grid_size)
             flow.Re = Re
-            flow.k = 4
+            flow.k = 4 # forcing wavenumber
             # Initialize state in Fourier space
             omega_0 = flow.initialize_state()
             # Setup PDE equation and time stepper
@@ -204,7 +204,6 @@ def generate_dataset(pde: str,
             # solving the save_freq issue
             trajectory_real = np.array(jax.device_get(trajectory_real))  # transfer entire array at once
             trajectory_real = trajectory_real[::save_freq]  # then slice in NumPy (fast)
-            print("trajectory shape (should be (T_sampled, 100, 100)):", trajectory_real.shape)
 
             trajectory = np.array(trajectory_real)  # shape: (T_sampled, X, Y) and changed from jnp to np
             trajectory = np.expand_dims(trajectory, axis=1)  # add channel dimension

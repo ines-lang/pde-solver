@@ -27,7 +27,8 @@
   "time_integration": "Crank–Nicolson exponential Runge–Kutta",
   "variant": "RK4-CN (low-storage 4th order IMEX scheme)",
   "forcing": "Sinusoidal (Kolmogorov-type), controlled via wavenumber k",
-  "state_representation": "Vorticity in Fourier space, transformed to real space via irfftn"
+  "state_representation": "Vorticity in Fourier space, transformed to real space via irfftn",
+  "flow.k": 4
 },
 
 "2d_animations": {
