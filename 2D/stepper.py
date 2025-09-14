@@ -423,7 +423,7 @@ def generate_dataset(pde: str,
                 # IC: small-amplitude smooth field in [-~0.5, ~0.5]
                 if ic == "RandomTruncatedFourierSeries":
                     base_ic = ex.ic.RandomTruncatedFourierSeries(
-                        num_spatial_dims=num_spatial_dims, cutoff=5
+                        num_spatial_dims=num_spatial_dims, cutoff=10
                     )
                     ic_gen = ex.ic.ScaledICGenerator(base_ic, scale=0.5)
                 else:

@@ -105,16 +105,16 @@ seed : int
     Random seed for reproducibility 
 """
 
-pde = "CahnHilliard" # options: 'KuramotoSivashinsky', 'Burgers', 'Kolmogorov', 'KortewegDeVries', 'GrayScott', 'FisherKPP', 'SwiftHohenberg', 'NavierStokesVorticity', 'AllenCahn', 'CahnHilliard'
-ic = "RandomTruncatedFourierSeries" # options: see description above
+pde = "GrayScott" # options: 'KuramotoSivashinsky', 'Burgers', 'Kolmogorov', 'KortewegDeVries', 'GrayScott', 'FisherKPP', 'SwiftHohenberg', 'NavierStokesVorticity', 'AllenCahn', 'CahnHilliard'
+ic = "RandomGaussianBlobs" # options: see description above
 bc = None
 
 x_domain_extent = 2.5
 y_domain_extent = 2.5 # In reality it is unused, it is the same as x_domain_extent
 num_points = 128
-dt_save = 0.001
-t_end = 300.0 
-save_freq = 100
+dt_save = 0.1
+t_end = 5000.0 
+save_freq = 50
 
 ''' What it implies:
 Total steps: n_steps = t_end / dt_save
@@ -122,25 +122,25 @@ Output interval: dt_output = dt_save * save_freq
 Total saved frames: n_saved = n_steps / save_freq + 1
 '''
 
-nu = [0.01, 0.001, 0.005]  # For Burgers, KortewegDeVries, FisherKPP and SwiftHohenberg equations
+nu = [0, 0.00001, 0.01]  # For Burgers, KortewegDeVries, FisherKPP and SwiftHohenberg equations
 # todo implement Re as nu 
 Re = 250  # For Kolmogorov equation. Not used in Navier-Stokes as we are using viscosity (nu).
 reactivity = 0.6 # For FisherKPP and SwiftHohenberg
 # For SwiftHohenberg
 critical_wavenumber = 1.0
 # For Gray-Scott
-feed_rate = 0.028
+feed_rate = 0.020
 kill_rate = 0.056
 # For Navier-Stokes
 vorticity_convection_scale = 1.0
 drag = 0.0
 # For AllenCahn and CahnHilliard
 gamma = 1e-3
-c1 = -1.0
-c3 = 1.0
+c1 = 1.0
+c3 = -1.0
 
 simulations = 5
-plotted_sim = 2
+plotted_sim = 5
 plot_sim = True
 stats = True
 seed = 42
@@ -421,8 +421,8 @@ def create_animation(
     x_extent=1.0,
     y_extent=1.0,
     dt_output=1.0,       # physical time step between saved frames
-    mode="physical",     # "physical" or "fixed"
-    duration_sec=None,   # used only if mode="fixed"
+    mode="fixed",     # "physical" or "fixed"
+    duration_sec=10,   # used only if mode="fixed"
     fps=20,
     cmap="viridis", # TODO CHECK IT
     vmin=None,
