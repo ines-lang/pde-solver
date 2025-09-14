@@ -1,4 +1,11 @@
 # 2D
-**generate_dataset.py** must be runned from 2D folder to correctly create the output directories.
+To generate datasets in two dimensions, run **`generate_dataset.py`** from within the `2D/` folder.  
+This ensures that the output directories are created correctly.
 
-/pde-solver/2D/kolmogorov_flow has the solver used form kolmogorov. Is has been obtained from https://github.com/smokbel/Controlling-Kolmogorov-Flow
+The resulting datasets can be found at:  
+[https://huggingface.co/datasets/isuarez/pde_collection](https://huggingface.co/datasets/isuarez/pde_collection)
+
+The solver used for Kolmogorov flow is located in  
+`/pde-solver/2D/kolmogorov_flow`.  
+It was obtained from  
+[https://github.com/smokbel/Controlling-Kolmogorov-Flow](https://github.com/smokbel/Controlling-Kolmogorov-Flow).
