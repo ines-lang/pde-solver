@@ -53,8 +53,7 @@
         "scale": 0.1,
         "std_one": false,
         "max_one": false,
-        "method": "Sample truncated Fourier coefficients to synthesize a smooth field, scale amplitude by 0.1, then subtract its spatial mean to enforce zero mass. Transform back to physical space via inverse FFT.",
-        "source_module": "exponax.ic.RandomTruncatedFourierSeries + ScaledICGenerator"
+        "method": "Sample truncated Fourier coefficients to synthesize a smooth field, scale amplitude by 0.1, then subtract its spatial mean to enforce zero mass."
     },
 
     "2d_animations": {
