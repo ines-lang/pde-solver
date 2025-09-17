@@ -364,9 +364,10 @@ if __name__ == "__main__":
 
     if cfg["plot_sim"]:
         random.seed(cfg["seed"])
-        selected_simulations = random.sample(range(len(sim_names)), cfg["plotted_sim"])
+        selected_simulations = random.sample(range(all_trajectories.shape[0]), cfg["plotted_sim"])
         for n_sim in selected_simulations:
-            sim_name = sim_names[n_sim]
+            # make sure sim_name list matches all_trajectories length, otherwise fallback
+            sim_name = sim_names[n_sim] if n_sim < len(sim_names) else f"sim_{n_sim:03d}"
             for c in range(num_channels):
                 cmap_val = pde_cmaps.get(cfg["pde"], default_cmap)
                 plt.imshow(all_trajectories[n_sim, c, :, :].T,  # (X, T)

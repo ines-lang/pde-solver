@@ -6,6 +6,8 @@ import jax.numpy as jnp
 import numpy as np
 import random
 import matplotlib.animation as animation
+import argparse
+import json
 
 from collections.abc import Iterable
 
@@ -105,8 +107,8 @@ seed : int
     Random seed for reproducibility 
 """
 
-pde = "GrayScott" # options: 'KuramotoSivashinsky', 'Burgers', 'Kolmogorov', 'KortewegDeVries', 'GrayScott', 'FisherKPP', 'SwiftHohenberg', 'NavierStokesVorticity', 'AllenCahn', 'CahnHilliard'
-ic = "RandomGaussianBlobs" # options: see description above
+pde = "Kolmogorov" # options: 'KuramotoSivashinsky', 'Burgers', 'Kolmogorov', 'KortewegDeVries', 'GrayScott', 'FisherKPP', 'SwiftHohenberg', 'NavierStokesVorticity', 'AllenCahn', 'CahnHilliard'
+ic = "SpectralFlow" # options: see description above
 bc = None
 
 x_domain_extent = 2.5
@@ -160,6 +162,71 @@ pde_cmaps = {
 }
 default_cmap = "viridis"
 
+# =======================================================
+# Argument parser
+# =======================================================
+def parse_args():
+    parser = argparse.ArgumentParser(description="Generate PDE simulation datasets (1D).")
+    parser.add_argument("--config", type=str, help="Path to JSON config file")
+    return parser.parse_args()
+
+
+def load_config(args):
+    """Load config file if provided, otherwise return globals (manual defaults)."""
+    global_vars = dict(
+        num_spatial_dims=num_spatial_dims,
+        pde=pde,
+        ic=ic,
+        bc=bc,
+        x_domain_extent=x_domain_extent,
+        num_points=num_points,
+        dt_save=dt_save,
+        t_end=t_end,
+        save_freq=save_freq,
+        nu=nu,
+        reactivity=reactivity,
+        critical_wavenumber=critical_wavenumber,
+        feed_rate=feed_rate,
+        kill_rate=kill_rate,
+        simulations=simulations,
+        plotted_sim=plotted_sim,
+        plot_sim=plot_sim,
+        stats=stats,
+        seed=seed,
+    )
+
+    if args.config:
+        with open(args.config, "r") as f:
+            config = json.load(f)
+
+        if "generate_dataset_py" in config:
+            config = config["generate_dataset_py"]
+
+        for k, v in config.items():
+            if k in global_vars:
+                # Handle booleans
+                if isinstance(global_vars[k], bool):
+                    v = str(v).lower() == "true"
+                # Handle lists
+                if isinstance(global_vars[k], list):
+                    v = [float(x) for x in v]
+                global_vars[k] = v
+
+    return global_vars
+
+
+# =======================================================
+# Main
+# =======================================================
+if __name__ == "__main__":
+    args = parse_args()
+    cfg = load_config(args)
+
+    print("Running with configuration:")
+    for k, v in cfg.items():
+        print(f"  {k}: {v}")
+
+    generate_dataset(**cfg)
 
 # =========================================
 # GENERATE DATASET
@@ -210,28 +277,28 @@ os.makedirs(plots_path, exist_ok=True)
 # Function to determine group name based on PDE and its parameters
 def get_group_name(pde, seed, nu_val=None, ic_val=None, Re=None, feed_rate=None, kill_rate=None, reactivity=None, critical_wavenumber=None, gamma=None):
     if pde == "Burgers":
-        return f"nu_{nu_val:.3f}"
+        return f"nu{nu_val:.3f}"
     elif pde == "KuramotoSivashinsky":  # with viscosity
-        return f"nu_{nu_val:.3f}"
+        return f"nu{nu_val:.3f}"
     elif pde == "KortewegDeVries":
-        return f"ic_{ic_val}"
+        return f"ic{ic_val}"
     elif pde == "Kolmogorov":
-        return f"Re_{Re:.3f}" # add Re_val when introducing a list
+        return f"Re{Re}" # add Re_val when introducing a list
     elif pde == "GrayScott":
-        return f"feed_{feed_rate:.3f}_kill_{kill_rate:.3f}"
+        return f"feed{feed_rate:.3f}_kill{kill_rate:.3f}"
     elif pde == "FisherKPP":
-        return f"nu_{nu_val:.3f}_reactivity_{reactivity:.3f}"
+        return f"nu{nu_val:.3f}_reactivity{reactivity:.3f}"
     elif pde == "SwiftHohenberg":
-        return f"reactivity_{reactivity:.3f}_k_{critical_wavenumber:.3f}"
+        return f"reactivity{reactivity:.3f}_k{critical_wavenumber:.3f}"
     elif pde == "NavierStokesVorticity":
-        return f"nu_{nu_val:.3e}" # if you plan to vary viscosity (nu) but keep convection scale and drag fixed
-        # return f"nu_{nu_val:.3e}_scale_{vorticity_convection_scale:.2f}_drag_{drag:.2f}" # if you plan to vary all three parameters
+        # return f"nu{nu_val:.3e}" # if you plan to vary viscosity (nu) but keep convection scale and drag fixed
+        return f"nu{nu_val:.3e}_scale{vorticity_convection_scale:.2f}_drag{drag:.2f}" # if you plan to vary all three parameters
     elif pde == "AllenCahn":
-        return f"nu_{nu_val:.3e}"
+        return f"nu{nu_val:.3e}"
     elif pde == "CahnHilliard":
-        return f"nu_{nu_val:.3e}_gamma_{gamma:.1e}"  
+        return f"nu{nu_val:.3e}_gamma{gamma:.1e}"  
     else:
-        return f"seed_{seed:03d}"
+        return f"seed{seed:03d}"
 
 with h5py.File(data_path, "w") as h5file:
     idx = 0

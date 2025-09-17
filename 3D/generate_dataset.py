@@ -156,19 +156,19 @@ os.makedirs(plots_path, exist_ok=True)
 # Function to determine group name based on PDE and its parameters
 def get_group_name(pde, seed, nu_val=None, ic_val=None, feed_rate=None, kill_rate=None, reactivity=None, critical_wavenumber=None):
     if pde == "Burgers":
-        return f"nu_{nu_val:.3f}"
+        return f"nu{nu_val:.3f}"
     elif pde == "KuramotoSivashinsky":
-        return f"nu_{nu_val:.3f}"
+        return f"nu{nu_val:.3f}"
     elif pde == "KortewegDeVries":
-        return f"ic_{ic_val}"
+        return f"ic{ic_val}"
     elif pde == "GrayScott":
-        return f"feed_{feed_rate:.3f}_kill_{kill_rate:.3f}"
+        return f"feed{feed_rate:.3f}_kill{kill_rate:.3f}"
     elif pde == "FisherKPP":
-        return f"nu_{nu_val:.3f}_reactivity_{reactivity:.3f}"
+        return f"nu{nu_val:.3f}_reactivity{reactivity:.3f}"
     elif pde == "SwiftHohenberg":
-        return f"reactivity_{reactivity:.3f}_k_{critical_wavenumber:.3f}"
+        return f"reactivity{reactivity:.3f}_k{critical_wavenumber:.3f}"
     else:
-        return f"seed_{seed:03d}"
+        return f"seed{seed:03d}"
 
 with h5py.File(data_path, "w") as h5file:
     idx = 0

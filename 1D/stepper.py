@@ -32,36 +32,38 @@ def generate_dataset(pde: str,
 
     if pde == "KuramotoSivashinskyConservative":
 
-        ks_class = getattr(ex.stepper, pde)
-        ks_stepper = ks_class(
-            num_spatial_dims=num_spatial_dims, 
-            domain_extent=x_domain_extent,
-            num_points=num_points, 
-            dt=dt_save
-            )
+        for nu_val in nu:
+            ks_class = getattr(ex.stepper, pde)
+            ks_stepper = ks_class(
+                num_spatial_dims=num_spatial_dims, 
+                domain_extent=x_domain_extent,
+                num_points=num_points, 
+                dt=dt_save
+                )
 
-        for seed in seed_list:
-            key = jax.random.PRNGKey(seed)
-            # Dynamically get the initial condition class from the module
-            ic_class = getattr(ex.ic, ic)
-            # Define common keyword arguments for all initial condition classes
-            common_kwargs = {
-                "num_spatial_dims": num_spatial_dims,
-            }
-            # Add class-specific arguments if applicable
-            if ic == "RandomTruncatedFourierSeries":
-                common_kwargs["cutoff"] = 5  
-            # Instantiate the initial condition generator
-            ic_instance = ic_class(**common_kwargs)
-            # Generate the initial condition with additional parameters
-            u_0 = ic_instance(num_points=num_points, key=key)
-            # u_0_squeeze = jnp.squeeze(u_0)  # removes all singleton axes = jnp.squeeze(u_0)  # removes all singleton axes
-            # Compute and store hash for grouping
-            trajectories = ex.rollout(ks_stepper, t_end, include_init=True)(u_0)
-            sampled_traj = trajectories[::save_freq]
-            all_trajectories.append(sampled_traj)
-            trajectory_nus.append(nu_val)          # keep viscosity
-            ic_hashes.append(f"sim_{len(ic_hashes)}")  # dummy id
+            for seed in seed_list:
+                key = jax.random.PRNGKey(seed)
+                # Dynamically get the initial condition class from the module
+                ic_class = getattr(ex.ic, ic)
+                # Define common keyword arguments for all initial condition classes
+                common_kwargs = {
+                    "num_spatial_dims": num_spatial_dims,
+                }
+                # Add class-specific arguments if applicable
+                if ic == "RandomTruncatedFourierSeries":
+                    common_kwargs["cutoff"] = 5  
+                # Instantiate the initial condition generator
+                ic_instance = ic_class(**common_kwargs)
+                # Generate the initial condition with additional parameters
+                u_0 = ic_instance(num_points=num_points, key=key)
+                # u_0_squeeze = jnp.squeeze(u_0)  # removes all singleton axes = jnp.squeeze(u_0)  # removes all singleton axes
+                # Compute and store hash for grouping
+                trajectories = ex.rollout(ks_stepper, t_end, include_init=True)(u_0)
+                sampled_traj = trajectories[::save_freq]
+                all_trajectories.append(sampled_traj)
+                trajectory_nus.append(nu_val)          # keep viscosity
+                ic_hashes.append(f"sim_{len(ic_hashes)}")  # dummy id
+                
         all_trajectories = jnp.stack(all_trajectories)  # shape: (N, T_sampled, C, X)
         # Move channel dimension to position 1
         all_trajectories = np.moveaxis(all_trajectories, -2, 1)  # (N, C, T, X)
@@ -140,7 +142,6 @@ def generate_dataset(pde: str,
                 else:
                     raise ValueError(f"Unexpected IC shape {u_0.shape}, expected (1, X)")
                 
-                
                 # Rollout
                 trajectories = ex.rollout(burgers_stepper, t_end, include_init=True)(u_0)
                 sampled_traj = trajectories[::save_freq]
@@ -183,16 +184,18 @@ def generate_dataset(pde: str,
             # Generate the initial condition with additional parameters
             u_0 = ic_instance(num_points=num_points, key=key)
 
-            # Remove leading channel dim if present
-            if u_0.ndim == 3 and u_0.shape[0] == 1:
-                u_0 = u_0[0]
-
-            # Stack into batch: (1, 200)
-            u_0 = jnp.expand_dims(u_0, axis=0)  # (1, 200)
+            # Normalize shape → always (C, X)
+            if u_0.ndim == 1:                   # (X,)
+                u_0 = u_0[jnp.newaxis, :]       # -> (1, X)
+            elif u_0.ndim == 2:                  # already (1, X)
+                pass
+            else:
+                raise ValueError(f"Unexpected IC shape {u_0.shape}, expected (1, X)")
             
             # Compute and store hash for grouping
             ic_hashes.append(ic_hash(u_0))  # removes all singleton axes))
 
+            # Rollout
             trajectories = ex.rollout(kdv_stepper, t_end, include_init=True)(u_0)
             sampled_traj = trajectories[::save_freq]
             all_trajectories.append(sampled_traj)

@@ -4,14 +4,13 @@
     "pde": "KortewegDeVries",
     "ic": "RandomTruncatedFourierSeries",
     "bc": "None",
-    "x_domain_extent": 100.0,
-    "num_points": 100,
-    "num_channels": 1,
+    "x_domain_extent": 128.0,
+    "num_points": 128,
     "dt_save": 0.0001,
     "t_end": 500.0,
     "save_freq": 1,
-    "simulations": 50,
-    "plotted_sim": 10,
+    "simulations": 10,
+    "plotted_sim": 3,
     "plot_sim": "True",
     "stats": "True",
     "seed": 42,
@@ -29,7 +28,8 @@
   },
 
   "stepper_py": {
-    "cutoff": 5
+    "cutoff": 5,
+    "include_init": "True"
   },
 
   "exponax_stepper": {
@@ -61,9 +61,14 @@
   "dataset_global_statistics": {
     "channel_0": {
       "mean": 0.000000,
-      "std": 0.562932,
-      "min": -4.766301,
-      "max": 5.909781
+      "std": 0.920627,
+      "min": -2.5384331,
+      "max": 2.620492
     }
-  }  
+  },
+
+  "generation_metadata": {
+    "generation_time": "7.57 seconds",
+    "dataset_shape": [10, 1, 501, 128]
+  } 
 }
