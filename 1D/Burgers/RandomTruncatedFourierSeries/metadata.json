@@ -4,14 +4,13 @@
     "pde": "Burgers",
     "ic": "RandomTruncatedFourierSeries",
     "bc": "None",
-    "x_domain_extent": 100.0,
-    "num_points": 200,
-    "num_channels": 2,
+    "x_domain_extent": 128.0,
+    "num_points": 128,
     "dt_save": 0.001,
     "t_end": 1000.0,
     "save_freq": 1,
-    "simulations": 50,
-    "plotted_sim": 10,
+    "simulations": 10,
+    "plotted_sim": 3,
     "plot_sim": "True",
     "stats": "True",
     "seed": 42,
@@ -29,7 +28,8 @@
   },
 
   "stepper_py": {
-    "cutoff": 5
+    "cutoff": 5,
+    "include_init": true
   },
 
   "exponax_stepper": {
@@ -63,9 +63,14 @@
     },
     "channel_1": {
       "mean": 0.000000,
-      "std": 0.562932,
-      "min": -4.766301,
-      "max": 5.909781
+      "std": 0.9205672,
+      "min": -2.538467,
+      "max": 2.620914
     }
-  }   
+  },
+
+  "generation_metadata": {
+  "generation_time": "12.80 seconds",
+  "dataset_shape": [30, 1, 1001, 128]
+  }
 }

@@ -132,22 +132,24 @@ def generate_dataset(pde: str,
                 # Generate the initial condition with additional parameters
                 u_0 = ic_instance(num_points=num_points, key=key)
                 
-                 # Remove leading channel dim if present
-                if u_0.ndim == 3 and u_0.shape[0] == 1:
-                    u_0 = u_0[0]
+                # Normalize shape → always (C, X)
+                if u_0.ndim == 1:                   # (X,)
+                    u_0 = u_0[jnp.newaxis, :]       # -> (1, X)
+                elif u_0.ndim == 2:                  # already (1, X)
+                    pass
+                else:
+                    raise ValueError(f"Unexpected IC shape {u_0.shape}, expected (1, X)")
                 
-                # Stack into batch: (1, 200)
-                u_0 = jnp.expand_dims(u_0, axis=0)  # (1, 200)
                 
                 # Rollout
                 trajectories = ex.rollout(burgers_stepper, t_end, include_init=True)(u_0)
                 sampled_traj = trajectories[::save_freq]
                 all_trajectories.append(sampled_traj)
+
                 trajectory_nus.append(nu_val)  # save the nu
                 ic_hashes.append(f"sim_{len(ic_hashes)}")  # dummy id
 
         all_trajectories = np.stack(all_trajectories)  # shape: (N, T_sampled, C, X)
-        # Move channel dimension to position 1
         all_trajectories = np.moveaxis(all_trajectories, -2, 1)  # (N, C, T, X)
         
         return all_trajectories, ic_hashes, trajectory_nus
