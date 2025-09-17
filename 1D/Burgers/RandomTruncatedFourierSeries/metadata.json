@@ -14,8 +14,8 @@
     "plot_sim": "True",
     "stats": "True",
     "seed": 42,
-    "nu": [0, 0.00001, 0.01], 
-    "pde_cmaps": {"Burgers": "RdBu"}
+    "nu": [0, 0.00001, 0.01],
+    "pde_cmaps": { "Burgers": "RdBu" }
   },
 
   "generation_details": {

@@ -110,7 +110,7 @@ plot_sim = True
 stats = True
 seed = 42 
 
-# Define PDE-to-colormap mapping
+# Define PDE-to-colormap mapping. Change here if wanted
 pde_cmaps = {
     "GrayScott": "viridis",
     "FisherKPP": "viridis",
@@ -129,7 +129,6 @@ def parse_args():
     parser = argparse.ArgumentParser(description="Generate PDE simulation datasets (1D).")
     parser.add_argument("--config", type=str, help="Path to JSON config file")
     return parser.parse_args()
-
 
 # =======================================================
 # Config loader
@@ -217,6 +216,11 @@ if __name__ == "__main__":
 
     seed_list = list(range(cfg["simulations"]))
 
+    # =========================================
+    # GENERATE DATASET
+    # =========================================
+
+    # Run dataset generation
     start_time = time.time()
     all_trajectories, ic_hashes, trajectory_nus = generate_dataset(
         pde=cfg["pde"],
@@ -245,6 +249,8 @@ if __name__ == "__main__":
     # ===================================================
     # SAVE DATASET
     # ===================================================
+    
+     #  Directory dependant on the pde and initial condition
     base_dir = os.path.join(cfg["pde"], cfg["ic"])
     os.makedirs(base_dir, exist_ok=True)
     data_path = os.path.join(base_dir, "dataset.h5")

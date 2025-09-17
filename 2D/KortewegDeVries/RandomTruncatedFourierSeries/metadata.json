@@ -4,9 +4,8 @@
     "pde": "KortewegDeVries",
     "ic": "RandomTruncatedFourierSeries",
     "bc": "None",
-    "x_domain_extent": 100.0,
-    "num_points": 100,
-    "num_channels": 1,
+    "x_domain_extent": 128.0,
+    "num_points": 128,
     "dt_save": 0.0001,
     "t_end": 500.0,
     "save_freq": 1,
@@ -29,7 +28,8 @@
   },
 
   "stepper_py": {
-    "cutoff": 5
+    "cutoff": 5,
+    "include_init": true
   },
 
   "exponax_stepper": {
@@ -71,5 +71,11 @@
       "min": -4.766301,
       "max": 5.909781
     }
-  }  
+  },
+  
+  "generation_metadata": {
+    "generation_time": "7.32 seconds",
+    "dataset_shape": [10, 1, 5, 2048]
+  }
+  
 }

@@ -6,7 +6,6 @@
         "bc": "None",
         "x_domain_extent": 2.5,
         "num_points": 128,
-        "num_channels": 1,
         "dt_save": 0.001,
         "t_end": 300.0,
         "save_freq": 100,
@@ -16,7 +15,7 @@
         "stats": "True",
         "seed": 42,
         "nu": [0.01, 0.001, 0.005],
-        "gamma": 1e-3,
+        "gamma": 0.001,
         "c1": -1.0,
         "c3": 1.0,
         "pde_cmaps": { "CahnHilliard": "RdBu" }
@@ -33,6 +32,7 @@
 
     "stepper_py": {
         "cutoff": 5,
+        "include_init": true,
         "scale": 0.1
     },
 
@@ -65,10 +65,16 @@
 
     "dataset_global_statistics": {
         "channel_0": {
-        "mean": 0.0,
-        "std": 0.0,
-        "min": 0.0,
-        "max": 0.0
+        "mean": 0.000000,
+        "std": 0.183026,
+        "min": -0.705545,
+        "max": 0.605650
         }
-    }
+    },
+
+    "generation_metadata": {
+        "generation_time": "9.84 seconds",
+        "dataset_shape": [15, 4, 1, 128, 128]
+      }
+      
 }

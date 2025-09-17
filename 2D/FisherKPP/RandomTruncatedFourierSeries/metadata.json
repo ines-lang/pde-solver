@@ -6,12 +6,11 @@
       "bc": "None",
       "x_domain_extent": 1.0,
       "num_points": 2048,
-      "num_channels": 1,
       "dt_save": 0.005,
       "t_end": 50.0,
       "save_freq": 1,
-      "simulations": 50,
-      "plotted_sim": 10,
+      "simulations": 3,
+      "plotted_sim": 3,
       "plot_sim": "True",
       "stats": "True",
       "seed": 42,
@@ -30,7 +29,8 @@
     },
   
     "stepper_py": {
-      "cutoff": 5
+      "cutoff": 5,
+      "include_init": true
     },
   
     "exponax_stepper": {
@@ -68,5 +68,11 @@
         "min": -4.766301,
         "max": 5.909781
       }
+    },
+
+    "generation_metadata": {
+      "generation_time": "7.32 seconds",
+      "dataset_shape": [10, 1, 5, 2048]
     }
+    
   }

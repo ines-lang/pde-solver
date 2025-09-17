@@ -14,8 +14,8 @@
     "plot_sim": "True",
     "stats": "True",
     "seed": 42,
-    "nu": [0, 0.01, 0.1, 0.05],  
-    "pde_cmaps": {"Burgers": "RdBu"}
+    "nu": [0, 0.01, 0.1, 0.05],
+    "pde_cmaps": {"KuramotoSivashinskyConservative": "RdBu"}
   },
 
   "generation_details": {

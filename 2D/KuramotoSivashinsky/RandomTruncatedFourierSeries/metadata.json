@@ -4,9 +4,8 @@
     "pde": "KuramotoSivashinsky",
     "ic": "RandomTruncatedFourierSeries",
     "bc": "None",
-    "x_domain_extent": 100.0,
-    "num_points": 200,
-    "num_channels": 1,
+    "x_domain_extent": 128.0,
+    "num_points": 256,
     "dt_save": 0.0001,
     "t_end": 100.0,
     "save_freq": 1,
@@ -16,7 +15,7 @@
     "stats": "True",
     "seed": 42,
     "nu": [0, 0.00001, 0.01], 
-    "pde_cmaps": {"Burgers": "RdBu"}
+    "pde_cmaps": {"KuramotoSivashinsky": "RdBu"}
   },
 
   "generation_details": {
@@ -32,7 +31,8 @@
   },
 
   "stepper_py": {
-    "cutoff": 5
+    "cutoff": 5,
+    "include_init": true
   },
 
   "exponax_stepper": {
@@ -66,5 +66,11 @@
       "min": -4.766301,
       "max": 5.909781
     }
+  },
+
+  "generation_metadata": {
+    "generation_time": "7.32 seconds",
+    "dataset_shape": [10, 1, 5, 2048]
   }
+  
 }

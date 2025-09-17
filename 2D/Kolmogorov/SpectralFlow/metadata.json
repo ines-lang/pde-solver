@@ -4,9 +4,8 @@
     "pde": "Kolmogorov",
     "ic": "SpectralFlow",
     "bc": "None",
-    "x_domain_extent": 100.0,
-    "num_points": 100,
-    "num_channels": 1,
+    "x_domain_extent": 128.0,
+    "num_points": 128,
     "dt_save": 0.001,
     "t_end": 100.0,
     "save_freq": 100,
@@ -16,7 +15,12 @@
     "stats": "True",
     "seed": 42,
     "Re": 250, 
-    "pde_cmaps": {"Burgers": "inferno"}
+    "pde_cmaps": {"Kolmogorov": "inferno"}
+  },
+
+  "stepper_py": {
+    "ignore_intermediate_steps": true,
+    "flow.k": 4
   },
 
   "generation_details": {
@@ -45,6 +49,11 @@
     "min": -4.766301,
     "max": 5.909781
   }
+  },
+
+  "generation_metadata": {
+    "generation_time": "7.32 seconds",
+    "dataset_shape": [10, 1, 5, 2048]
   }
   
 }

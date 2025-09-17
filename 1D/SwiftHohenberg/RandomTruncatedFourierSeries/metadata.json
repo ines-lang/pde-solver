@@ -17,7 +17,7 @@
     "nu": [0, 0.00001, 0.01], 
     "reactivity": 0.6,
     "critical_wavenumber": 1.0,
-    "pde_cmaps": {"Burgers": "viridis"}
+    "pde_cmaps": {"SwiftHohenberg": "viridis"}
   },
 
   "generation_details": {
@@ -32,7 +32,9 @@
   "stepper_py": {
     "cutoff": 5,
     "include_init": true,
-    "intensity": 1e-3
+    "polynomial_coefficients": [0.0, 0.0, 1.0, -1.0],
+    "intensity": 1e-3,
+    "scale": 0.1
   },
 
   "exponax_stepper": {

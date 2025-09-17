@@ -16,7 +16,7 @@
       "seed": 42,
       "nu": [0, 0.00001, 0.01], 
       "reactivity": 10,
-      "pde_cmaps": {"FisherKPP": "viridis"}
+      "pde_cmaps": { "FisherKPP": "viridis" }
     },
   
     "generation_details": {

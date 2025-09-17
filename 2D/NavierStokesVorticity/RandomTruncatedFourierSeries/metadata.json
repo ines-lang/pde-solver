@@ -6,7 +6,6 @@
       "bc": "None",
       "x_domain_extent": 2.5,
       "num_points": 128,
-      "num_channels": 1,
       "dt_save": 0.01,
       "t_end": 500.0,
       "save_freq": 100,
@@ -18,8 +17,7 @@
       "nu": [0.01, 0.003, 0.001],
       "vorticity_convection_scale": 1.0,
       "drag": 0.0,
-      "pde_cmaps": {
-        "NavierStokesVorticity": "RdBu"}
+      "pde_cmaps": {"NavierStokesVorticity": "RdBu"}
     },
   
     "generation_details": {
@@ -31,6 +29,7 @@
   
     "stepper_py": {
       "cutoff": 5,
+      "include_init": true,
       "scale": 0.3
     },
   
@@ -64,6 +63,12 @@
         "min": -7.055449,
         "max": 6.794626
       }
+    },
+
+    "generation_metadata": {
+      "generation_time": "7.32 seconds",
+      "dataset_shape": [10, 1, 5, 2048]
     }
+    
   }
   

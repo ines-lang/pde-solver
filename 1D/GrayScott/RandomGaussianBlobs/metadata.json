@@ -17,7 +17,7 @@
     "nu": [0, 0.00001, 0.01], 
     "feed_rate": 0.028,
     "kill_rate": 0.056,
-    "pde_cmaps": {"Burgers": "viridis"}
+    "pde_cmaps": {"GrayScott": "viridis"}
   },
 
   "generation_details": {
