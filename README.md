@@ -46,7 +46,7 @@ Running `generate_dataset.py` automatically creates a directory structure organi
 
 ```
 2D/
-├── dataset_generator.py
+├── generate_dataset.py
 ├── stepper.py
 ├── pde/
 │   └── ic/
@@ -59,9 +59,9 @@ Running `generate_dataset.py` automatically creates a directory structure organi
 - **`dataset.h5`**  
   The main simulation output. Each group corresponds to a PDE parameterization (e.g. `nu_0.010`, `Re_250.000`, `feed_0.028_kill_0.056`). Inside each group, trajectories are saved as datasets (`velocity_seed000`, `state_seed001`, etc.), with shape:
   
-  (T, C, H[, W[, D]])
+  (C, T, H[, W[, D]])
   
-  where `T` = time steps, `C` = channels, `H/W/D` = spatial dimensions.
+  where `C` = channels, `T` = time steps, `H/W/D` = spatial dimensions.
 
 - **`plots/`**  
 Contains `.png` snapshots and `.mp4` animations of some simulations, grouped by channel. This allows quick inspection of qualitative dynamics.
@@ -75,12 +75,12 @@ A structured record of all parameters, solver details, initial condition generat
 
 Simulation trajectories are stored as HDF5 datasets with the structure:
 
-B × T × C × H [× W [× D]]
+B × C × T × H [× W [× D]]
 
 
-- **B**: number of simulations (batch size)  
-- **T**: number of saved time steps  
+- **B**: number of simulations (batch size)    
 - **C**: number of channels (scalar field(s) per PDE)  
+- **T**: number of saved time steps
 - **H/W/D**: spatial dimensions  
 
 Each dataset is grouped by PDE parameters (e.g., viscosity, Reynolds number, reaction rates). Example group names:
@@ -92,6 +92,44 @@ Each dataset is grouped by PDE parameters (e.g., viscosity, Reynolds number, rea
 
 ---
 
+## Running the Generator
+
+The entry point is `generate_dataset.py`, which supports two modes:
+
+1. **Default parameters**  
+   Run without arguments to use the defaults defined in the script:
+   ```bash
+   python generate_dataset.py
+   ```
+
+2. **Custom configuration**  
+   Provide a JSON file with your parameters (faster):
+   ```bash
+   python generate_dataset.py --config metadata.json
+   ```
+   Example `metadata.json` files are provided in the repository for each PDE and dimension.  
+   For more details on repository layout and code structure, see the section *File Structure*.
+
+   The following parameters can be specified through the argparse configuration:
+
+   - `num_spatial_dims`, `pde`, `ic`, `bc`  
+   - `x_domain_extent`, `num_points`, `dt_save`, `t_end`, `save_freq`  
+   - `nu`, `Re`, `reactivity`, `critical_wavenumber`  
+   - `feed_rate`, `kill_rate`, `vorticity_convection_scale`, `drag`  
+   - `gamma`, `c1`, `c3`  
+   - `simulations`, `plotted_sim`, `plot_sim`, `stats`, `seed`  
+
+   Note: in 1D and 3D configurations, some parameters may not apply.
+
+   For example, some variables recorded in the metadata cannot be changed directly through it, such as the `cmap` or animation-related settings (e.g., whether the visualization is `physical`, `fixed`, etc.).
+
+In both modes, the script generates:
+
+- `dataset.h5` — simulation trajectories  
+- `metadata.json` — full record of parameters and solver details  
+- `plots/` — PNG/MP4 visualizations of selected runs
+
+---
 ## File Structure
 
 To generate datasets, you need a working directory organized by **dimension** (e.g., `1D/`, `2D/`, or `3D/`). Inside each dimension folder, place the following components:
