@@ -6,11 +6,11 @@
     "bc": "None",
     "x_domain_extent": 128.0,
     "num_points": 256,
-    "dt_save": 0.001,
-    "t_end": 1000.0,
-    "save_freq": 1,
-    "simulations": 50,
-    "plotted_sim": 10,
+    "dt_save": 0.01,
+    "t_end": 10.0,
+    "save_freq": 10,
+    "simulations": 5,
+    "plotted_sim": 3,
     "plot_sim": "True",
     "stats": "True",
     "seed": 42,
@@ -54,22 +54,28 @@
   
   "dataset_global_statistics": {
     "channel_0": {
-      "mean": 0.000000,
-      "std": 0.562932,
-      "min": -4.766301,
-      "max": 5.909781
+      "mean": -0.249138,
+      "std": 3.736791,
+      "min": -15.010252,
+      "max": 14.087478
     },
     "channel_1": {
-      "mean": 0.000000,
-      "std": 0.562932,
-      "min": -4.766301,
-      "max": 5.909781
+      "mean": -0.252151,
+      "std": 3.729382,
+      "min": -16.722519,
+      "max": 16.926664
+    },
+    "channel_2": {
+      "mean": -0.253426,
+      "std": 3.730238,
+      "min": -16.14333,
+      "max": 14.142189
     }
   },
   
   "generation_metadata": {
-    "generation_time": "7.32 seconds",
-    "dataset_shape": [10, 1, 5, 2048]
+    "generation_time": "141.07 seconds",
+    "dataset_shape": [29, 3, 2, 256, 256, 256]
   }
 
 }

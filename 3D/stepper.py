@@ -20,10 +20,6 @@ def generate_dataset(pde: str,
                       t_end: float,
                       save_freq: int, 
                       nu: float,
-                      feed_rate: float,
-                      kill_rate: float,
-                      reactivity: float,
-                      critical_wavenumber: float,
                       seed_list:List,
                       seed: int):
     
@@ -51,25 +47,33 @@ def generate_dataset(pde: str,
                 # --- Generate 3 ICs per seed ---
                 keys = jax.random.split(key, 3)
                 u_list = [ic_instance(num_points=num_points, key=k) for k in keys]
-                # Remove leading channel dim if present
-                for i in range(3):
-                    if u_list[i].ndim == 3 and u_list[i].shape[0] == 1:
-                        u_list[i] = u_list[i][0]
 
-                u_0 = jnp.stack(u_list)  # shape: (3, X, Y, Z)
-                
-                ic_hashes.append(hash(u_0.tobytes()))
-                
-                # Rollout
-                trajectories = ex.rollout(ks_stepper, t_end, include_init=True)(u_0)
-                sampled_traj = trajectories[::save_freq]
-                all_trajectories.append(sampled_traj)
+                for u in u_list:
+                    # Ensure (1, X, Y, Z)
+                    if u.ndim == 3:
+                        u = u[jnp.newaxis, ...]
+                    elif u.ndim == 4 and u.shape[0] == 1:
+                        pass
+                    else:
+                        raise ValueError(f"Unexpected IC shape {u.shape}")
 
-                trajectory_nus.append(nu_val)
+                    ic_hashes.append(hash(np.asarray(jax.device_get(u)).tobytes()))
+
+                    # Rollout one IC
+                    traj = ex.rollout(ks_stepper, t_end, include_init=True)(u)  # (T, 1, X, Y, Z)
+                    sampled_traj = traj[::save_freq]
+                    all_trajectories.append(np.asarray(jax.device_get(sampled_traj)))
+
+                    trajectory_nus.append(nu_val)
         
-        all_trajectories = np.stack(all_trajectories)  # shape: (N, T_sampled, C, X, Z)
-        print("Shape after stacking (Should be (N, T_sampled, C, X, Y, Z)):", all_trajectories.shape)
-        
+        if len(all_trajectories) == 0:
+            raise RuntimeError("No valid KS trajectories generated.")
+
+        # (N, T, C, X, Y, Z) → (N, C, T, X, Y, Z)
+        all_trajectories = np.stack(all_trajectories)
+        all_trajectories = np.transpose(all_trajectories, (0, 2, 1, 3, 4, 5))
+        print("Shape after stacking:", all_trajectories.shape)
+
         return all_trajectories, ic_hashes, trajectory_nus
     
     elif pde == "Burgers":
@@ -84,50 +88,61 @@ def generate_dataset(pde: str,
                 dt=dt_save,
                 diffusivity=nu_val  # Use nu_val for viscosity
                 )
-    
+
+            ic_class = getattr(ex.ic, ic)
+            common_kwargs = {"num_spatial_dims": num_spatial_dims}
+            if ic == "RandomTruncatedFourierSeries":
+                common_kwargs["cutoff"] = 5
+            ic_instance = ic_class(**common_kwargs)
+            
             for seed in seed_list:
                 key = jax.random.PRNGKey(seed)
-                ic_class = getattr(ex.ic, ic)
-                common_kwargs = {
-                    "num_spatial_dims": num_spatial_dims,
-                }
-                # Add class-specific arguments if applicable
-                if ic == "RandomTruncatedFourierSeries":
-                    common_kwargs["cutoff"] = 5
-                try:
-                    ic_instance = ic_class(**common_kwargs)
-                    # --- Generate 3 ICs per seed ---
-                    keys = jax.random.split(key, 3)
-                    u_list = [ic_instance(num_points=num_points, key=k) for k in keys]
-                    for i in range(3):
-                        if u_list[i].ndim == 3 and u_list[i].shape[0] == 1:
-                            u_list[i] = u_list[i][0]
+                keys = jax.random.split(key, 3) # 3 ICs per seed
+                
+                for k in keys:
+                    try:
+                        # --- Build vector IC with num_spatial_dims channels ---
+                        comp_keys = jax.random.split(k, num_spatial_dims)
+                        comps = []
+                        for ck in comp_keys:
+                            u_scalar = ic_instance(num_points=num_points, key=ck)  # (X,Y,Z) or (1,X,Y,Z)
+                            if u_scalar.ndim == 4 and u_scalar.shape[0] == 1:
+                                u_scalar = u_scalar[0]      # strip leading channel
+                            elif u_scalar.ndim == 3:
+                                u_scalar = u_scalar
+                            else:
+                                raise ValueError(f"Unexpected IC shape {u_scalar.shape}")
+                            comps.append(u_scalar)
 
-                    u_0 = jnp.stack(u_list)  # shape: (3, X, Y, Z)
-                    ic_hashes.append(hash(u_0.tobytes()))
-                    
-                    # Rollout
-                    trajectories = np.array(ex.rollout(burgers_stepper, t_end, include_init=True)(u_0)) # added numpy to move rollout to CPU immediately
-                    sampled_traj = trajectories[::save_freq]
-                    # Debugging block
-                    # print(f"seed {seed} → traj shape: {sampled_traj.shape}")
-                    # print(f"min: {np.nanmin(sampled_traj):.3f}, max: {np.nanmax(sampled_traj):.3f}")
-                    
-                    # Check for NaNs/Infs
-                    if np.isnan(sampled_traj).any() or np.isinf(sampled_traj).any():
-                        raise ValueError("Trajectory contains NaNs or Infs")
-                    all_trajectories.append(sampled_traj)
-                    trajectory_nus.append(nu_val)  # save the nu
-                except Exception as e:
-                    print(f"Failed to generate trajectory for seed {seed}: {e}")
-                    continue  # Skip this seed and move on
-                # print(f"Generated {len(all_trajectories)} valid trajectories out of {len(seed_list)} seeds.")
+                        u0 = jnp.stack(comps, axis=0)  # (C=num_spatial_dims, X, Y, Z)
 
-            if len(all_trajectories) == 0:
-                raise RuntimeError("No valid trajectories were generated.")
-            
-        all_trajectories = np.stack(all_trajectories)  # shape: (N, T_sampled, C, X, Y, Z)
-        print("Shape after stacking (Should be (N, T_sampled, C, X, Y, Z)):", all_trajectories.shape)
+                        # Hash IC
+                        ic_hashes.append(hash(np.asarray(jax.device_get(u0)).tobytes()))
+
+                        # --- Rollout ---
+                        traj = ex.rollout(burgers_stepper, t_end, include_init=True)(u0)  # (T, C, X, Y, Z)
+                        traj = np.asarray(jax.device_get(traj))
+
+                        # Subsample in time
+                        sampled_traj = traj[::save_freq]  # (T_s, C, X, Y, Z)
+
+                        if not np.isfinite(sampled_traj).all():
+                            raise ValueError("Trajectory contains NaNs or Infs")
+
+                        all_trajectories.append(sampled_traj)
+                        trajectory_nus.append(nu_val)
+
+                    except Exception as e:
+                        print(f"[Skip] seed {seed}: {e}")
+                        continue
+
+        if len(all_trajectories) == 0:
+            raise RuntimeError("No valid trajectories were generated.")
+
+        # Stack into (N, T, C, X, Y, Z) and transpose to (N, C, T, X, Y, Z)
+        all_trajectories = np.stack(all_trajectories)
+        all_trajectories = np.transpose(all_trajectories, (0, 2, 1, 3, 4, 5))
+        print("Shape after stacking (Should be (N, C, T, X, Y, Z)):", all_trajectories.shape)
 
         return all_trajectories, ic_hashes, trajectory_nus
     
@@ -141,7 +156,7 @@ def generate_dataset(pde: str,
             dt=dt_save, # integrator dt
             single_channel=True,  # make it scalar: only 1 channel, no 1 channel per IC: ensures it expects (1, X, Y, Z)
             conservative=True,          # <— helps stability
-            hyper_diffusivity=0.1,     # try 0.05 → 0.1 if still unstable
+            hyper_diffusivity=0.5,     # try 0.05 → 0.1 if still unstable
             order=2,                    # can try 3 or 4 for accuracy
         )       
         
@@ -223,8 +238,9 @@ def generate_dataset(pde: str,
         if len(all_trajectories) == 0:
             print("[Warning] No valid trajectories collected.")
         else:
-            all_trajectories = np.stack(all_trajectories, axis=0)
-            print("Stacked shape (N_runs, T_sampled, 1, X, Y, Z):", all_trajectories.shape)
+            all_trajectories = np.stack(all_trajectories)  # shape: (N, T_sampled, C, X, Y, Z)
+            all_trajectories = np.transpose(all_trajectories, (0, 2, 1, 3, 4, 5))  # shape: (N, C, T_sampled, X, Y, Z)
+            print("Shape after stacking (Should be (N, C, T_sampled, X, Y, Z)):", all_trajectories.shape)
 
         return all_trajectories, ic_hashes, trajectory_nus
     
