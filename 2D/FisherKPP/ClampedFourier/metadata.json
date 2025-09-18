@@ -8,8 +8,8 @@
       "num_points": 2048,
       "dt_save": 0.005,
       "t_end": 50.0,
-      "save_freq": 1,
-      "simulations": 3,
+      "save_freq": 10,
+      "simulations": 10,
       "plotted_sim": 3,
       "plot_sim": "True",
       "stats": "True",
@@ -63,16 +63,16 @@
     
     "dataset_global_statistics": {
       "channel_0": {
-        "mean": 0.000000,
-        "std": 0.562932,
-        "min": -4.766301,
-        "max": 5.909781
+        "mean": 0.731101,
+        "std": 0.261377,
+        "min": -1.216478,
+        "max": 2.905258
       }
     },
 
     "generation_metadata": {
-      "generation_time": "7.32 seconds",
-      "dataset_shape": [10, 1, 5, 2048]
+      "generation_time": "24.64 seconds",
+      "dataset_shape": [30, 1, 6, 2048, 2048]
     }
     
   }

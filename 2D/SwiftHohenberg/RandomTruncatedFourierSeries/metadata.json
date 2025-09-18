@@ -4,13 +4,13 @@
       "pde": "SwiftHohenberg",
       "ic": "RandomTruncatedFourierSeries",
       "bc": "None",
-      "x_domain_extent": "20 * pi",
+      "x_domain_extent": 62.8318,
       "num_points": 2048,
       "dt_save": 0.05,
       "t_end": 20.0,
       "save_freq": 5,
       "simulations": 5,
-      "plotted_sim": 11,
+      "plotted_sim": 3,
       "plot_sim": "True",
       "stats": "True",
       "seed": 42,
@@ -60,24 +60,23 @@
     },
 
     "2d_animations": {
-      "mode": "physical",
-      "duration_sec": 10,
-      "fps": 20,
-      "dt_output": 1.0
+      "mode": "fixed",
+      "duration_sec": 10.0,
+      "frames": 200
     },
     
     "dataset_global_statistics": {
       "channel_0": {
-        "mean": 0.000000,
-        "std": 0.562932,
-        "min": -4.766301,
-        "max": 5.909781
+        "mean": 0.011682,
+        "std": 0.176978,
+        "min": -0.7096791,
+        "max": 0.794112
       }
     },
 
     "generation_metadata": {
-      "generation_time": "7.32 seconds",
-      "dataset_shape": [10, 1, 5, 2048]
+      "generation_time": "8.23 seconds",
+      "dataset_shape": [5, 5, 1, 2048, 204]
     }
     
   }

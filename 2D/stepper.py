@@ -73,6 +73,7 @@ def generate_dataset(pde: str,
         print("Shape before stacking (Should be (N, T_sampled, C, X, Y)):", jnp.array(all_trajectories).shape)
         
         all_trajectories = np.stack(all_trajectories)  # shape: (N, T_sampled, C, X, Y)
+        all_trajectories = np.transpose(all_trajectories, (0, 2, 1, 3, 4)) # (N, C, T, X, Y)
         
         return all_trajectories, ic_hashes, trajectory_nus
     
@@ -122,6 +123,7 @@ def generate_dataset(pde: str,
                 ic_hashes.append(f"sim_{len(ic_hashes)}")  # dummy id
 
         all_trajectories = np.stack(all_trajectories)  # shape: (N, T_sampled, C, X Y)
+        all_trajectories = np.transpose(all_trajectories, (0, 2, 1, 3, 4))  # (N, C, T, X, Y)
         
         return all_trajectories, ic_hashes, trajectory_nus
     
@@ -133,48 +135,83 @@ def generate_dataset(pde: str,
             domain_extent=x_domain_extent,
             num_points=num_points, 
             dt=dt_save,
+            single_channel=True,            # expect (1, X)
+            conservative=True,              # helps stability
+            order=2,                        # can
             )
         
         def ic_hash(u_0, length=8):
             full_hash = hashlib.sha256(u_0.tobytes()).hexdigest()
             return full_hash[:length]  # Return first 'length' characters of the hash
         
+        # ---- IC generator ----
+        ic_class = getattr(ex.ic, ic)
+        common_kwargs = {"num_spatial_dims": 2}
+        if ic == "RandomTruncatedFourierSeries":
+            common_kwargs["cutoff"] = 5
+        ic_instance = ic_class(**common_kwargs)
+
+        # ---- Rollout expects NUMBER OF STEPS (like your 3D block) ----
+        n_steps = int(np.ceil(t_end / dt_save))
+        rollout_fn = ex.rollout(kdv_stepper, n_steps, include_init=True)  # (T_int, 1, X, Y)
+
         for seed in seed_list:
             key = jax.random.PRNGKey(seed)
-            ic_class = getattr(ex.ic, ic)
-            common_kwargs = {
-                "num_spatial_dims": num_spatial_dims,
-            }
-            # Add class-specific arguments if applicable
-            if ic == "RandomTruncatedFourierSeries":
-                common_kwargs["cutoff"] = 5
-            
-            ic_instance = ic_class(**common_kwargs)
-            
-            # Generate the initial condition with additional parameters
-            key1, key2 = jax.random.split(key)
+            keys = jax.random.split(key, 3)  # 3 ICs per seed, as in your 3D pattern
 
-            u_0_1 = ic_instance(num_points=num_points, key=key1)
-            u_0_2 = ic_instance(num_points=num_points, key=key2)
+            # Generate ICs; normalize to (1, X, Y)
+            u_list = []
+            for k in keys:
+                u = ic_instance(num_points=num_points, key=k)  # returns (X, Y) or (1, X, Y)
+                if u.ndim == 3 and u.shape[0] == 1:
+                    u_c = u
+                elif u.ndim == 2:
+                    u_c = u[jnp.newaxis, ...]  # add channel axis -> (1, X, Y)
+                else:
+                    raise ValueError(f"IC has unexpected shape {u.shape}; expected (X,Y) or (1,X,Y)")
+                u_list.append(u_c)
 
-            # Remove leading channel dim if present: (1, 200, 200) → (200, 200)
-            if u_0_1.ndim == 3 and u_0_1.shape[0] == 1:
-                u_0_1 = u_0_1[0]
-                u_0_2 = u_0_2[0]
+            # Hash the batch of ICs for this seed (stack only for hashing)
+            u_stack_for_hash = jnp.stack(u_list, axis=0)  # (3, 1, X, Y)
+            ic_hashes.append(ic_hash(u_stack_for_hash))
 
-            # Stack into batch: (2, 200, 200)
-            u_0 = jnp.stack([u_0_1, u_0_2])
-            
-            # Compute and store hash
-            ic_hashes.append(ic_hash(u_0)) # it needs to be added
+            # Roll out each IC separately and subsample in time
+            for i, u0_single in enumerate(u_list):
+                try:
+                    traj = rollout_fn(u0_single)                    # (T_int, 1, X, Y); includes init
+                    T_int = traj.shape[0]
 
-            trajectories = ex.rollout(kdv_stepper, t_end, include_init=True)(u_0)
-            sampled_traj = trajectories[::save_freq]
-            all_trajectories.append(sampled_traj)
+                    # Build explicit save indices; include last frame even if not multiple of save_freq
+                    save_idx = jnp.arange(0, T_int, save_freq)
+                    if save_idx[-1] != T_int - 1:
+                        save_idx = jnp.concatenate([save_idx, jnp.array([T_int - 1])])
 
-            trajectory_nus.append(f"sim_{len(trajectory_nus)}")  # dummy id
+                    # Subsample on device, then move to host
+                    sampled = traj[save_idx]                        # (T_saved, 1, X, Y)
+                    sampled_np = np.asarray(jax.device_get(sampled))
 
-        all_trajectories = np.stack(all_trajectories)  # shape: (N, T_sampled, C, X, Y)
+                    # Guard against bad trajectories
+                    if not np.isfinite(sampled_np).all():
+                        raise ValueError("Trajectory contains NaNs or Infs")
+
+                    # Sanity check
+                    assert sampled_np.ndim == 4 and sampled_np.shape[1] == 1, \
+                        f"Expected (T,1,X,Y); got {sampled_np.shape}"
+
+                    all_trajectories.append(sampled_np)             # (T_saved, 1, X, Y)
+                    trajectory_nus.append(f"seed{seed:03d}_ic{i}")  # tag per-run
+
+                except Exception as e:
+                    print(f"[Skip] seed {seed} ic {i}: {e}")
+                    continue
+
+        # Final stacking: (N_runs, T_saved, 1, X, Y) → (N_runs, 1, T_saved, X, Y)
+        if len(all_trajectories) == 0:
+            print("[Warning] No valid trajectories collected.")
+            return np.empty((0, 1, 0, num_points, num_points)), ic_hashes, trajectory_nus
+
+        all_trajectories = np.stack(all_trajectories, axis=0)                 # (N, T, 1, X, Y)
+        all_trajectories = np.transpose(all_trajectories, (0, 2, 1, 3, 4))    # (N, 1, T, X, Y)
 
         return all_trajectories, ic_hashes, trajectory_nus
     
@@ -200,24 +237,23 @@ def generate_dataset(pde: str,
             step_fn = transient.RK4_CN(equation, dt)
             # Run simulation and recover real-space vorticity
             _, trajectory_real = transient.iterative_func(
-                step_fn, omega_0, total_steps, step_to_save, ignore_intermediate_steps=True)
-            # solving the save_freq issue
-            trajectory_real = np.array(jax.device_get(trajectory_real))  # transfer entire array at once
-            trajectory_real = trajectory_real[::save_freq]  # then slice in NumPy (fast)
+                step_fn, omega_0, total_steps, step_to_save, ignore_intermediate_steps=True
+            )
 
-            trajectory = np.array(trajectory_real)  # shape: (T_sampled, X, Y) and changed from jnp to np
-            trajectory = np.expand_dims(trajectory, axis=1)  # add channel dimension
-            all_trajectories.append(trajectory) 
-            print("Shape before stacking (Should be (T_sampled, 1, X, Y)):", trajectory.shape)
+            # Move once to CPU
+            trajectory_real = np.array(jax.device_get(trajectory_real))  # shape: (T_saved, X, Y)
+
+            # Add channel dimension
+            trajectory = np.expand_dims(trajectory_real, axis=1)         # (T_saved, 1, X, Y)
+            all_trajectories.append(trajectory)
+            print("Shape before stacking (Should be (T_saved, 1, X, Y)):", trajectory.shape)
 
             ic_hashes.append(f"sim_{len(ic_hashes)}")  
             trajectory_nus.append(Re)    # keep Reynolds, dummy id
         
-        # Convert all toa NumPyrray before stacking
-        all_trajectories = [np.array(jax.device_get(traj)) for traj in all_trajectories]
-        all_trajectories = np.stack(all_trajectories)
-        print(type(all_trajectories))  
-        print(all_trajectories.shape)  # (N, T, 1, X, Y)
+        # Stack and reorder
+        all_trajectories = np.stack(all_trajectories)                 # (N, T, 1, X, Y)
+        all_trajectories = np.transpose(all_trajectories, (0, 2, 1, 3, 4))  # (N, 1, T, X, Y)
 
         return all_trajectories, ic_hashes, trajectory_nus
 
@@ -266,6 +302,7 @@ def generate_dataset(pde: str,
             trajectory_nus.append(f"sim_{len(trajectory_nus)}")  # dummy id
             
         all_trajectories = np.stack(all_trajectories)  # shape: (N, T_sampled, C, X)
+        all_trajectories = np.transpose(all_trajectories, (0, 2, 1, 3, 4))  # (N, C, T, X, Y)
         
         trajectory_nus = [f"sim_{i}" for i in range(len(all_trajectories))] # dummy variable for each trajectory for consistency
         ic_hashes = [f"sim_{i}" for i in range(len(all_trajectories))]
@@ -311,7 +348,8 @@ def generate_dataset(pde: str,
                 trajectory_nus.append(nu_val)  # save the nu
                 ic_hashes.append(f"sim_{len(ic_hashes)}")  # dummy id
                 
-        all_trajectories = np.stack(all_trajectories)  # shape: (N, T_sampled, C, X)
+        all_trajectories = np.stack(all_trajectories)  # shape: (N, T_sampled, C, X, Y)
+        all_trajectories = np.transpose(all_trajectories, (0, 2, 1, 3, 4))  # (N, C, T, X, Y)
            
         return all_trajectories, ic_hashes, trajectory_nus
 
@@ -355,6 +393,7 @@ def generate_dataset(pde: str,
             ic_hashes = [f"sim_{i}" for i in range(len(all_trajectories))]
             
         all_trajectories = np.stack(all_trajectories)  # shape: (N, T_sampled, C, X)
+        all_trajectories = np.transpose(all_trajectories, (0, 2, 1, 3, 4))  # (N, C, T, X, Y)
         
         return all_trajectories, ic_hashes, trajectory_nus
     
@@ -398,6 +437,8 @@ def generate_dataset(pde: str,
                 ic_hashes.append(f"sim_{len(ic_hashes)}")
 
         all_trajectories = np.stack(all_trajectories)  # (N, T_sampled, C, X, Y)
+        all_trajectories = np.transpose(all_trajectories, (0, 2, 1, 3, 4))  # (N, C, T, X, Y)
+
         return all_trajectories, ic_hashes, trajectory_nus
 
     elif pde == "AllenCahn":
@@ -441,6 +482,8 @@ def generate_dataset(pde: str,
                 ic_hashes.append(f"sim_{len(ic_hashes)}")
 
         all_trajectories = np.stack(all_trajectories)  # (N, T, C, X, Y)
+        all_trajectories = np.transpose(all_trajectories, (0, 2, 1, 3, 4))  # (N, C, T, X, Y)
+
         return all_trajectories, ic_hashes, trajectory_nus
 
 
@@ -489,6 +532,8 @@ def generate_dataset(pde: str,
                 ic_hashes.append(f"sim_{len(ic_hashes)}")
 
         all_trajectories = np.stack(all_trajectories)  # (N, T, C, X, Y)
+        all_trajectories = np.transpose(all_trajectories, (0, 2, 1, 3, 4))  # (N, C, T, X, Y)
+
         return all_trajectories, ic_hashes, trajectory_nus
 
     else:

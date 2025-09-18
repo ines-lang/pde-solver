@@ -61,16 +61,16 @@
   
     "dataset_global_statistics": {
       "channel_0": {
-        "mean": 0.000000,
-        "std": 1.67197,
+        "mean": -0.000911,
+        "std": 1.443809,
         "min": -7.712518,
         "max": 6.802481
       }
     },
 
     "generation_metadata": {
-      "generation_time": "11.10 seconds",
-      "dataset_shape": [20, 4, 1, 128, 128]
+      "generation_time": "10.61 seconds",
+      "dataset_shape": [20, 1, 4, 128, 128]
     }
 }
   

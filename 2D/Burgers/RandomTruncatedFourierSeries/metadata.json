@@ -63,22 +63,22 @@
 
   "dataset_global_statistics": {
   "channel_0": {
-    "mean": 0.000000,
-    "std": 1.800108,
-    "min": -6.800762,
-    "max": 6.116230
+    "mean": -0.011345,
+    "std": 1.847098,
+    "min": -7.307979,
+    "max": 8.478621
   },
   "channel_1": {
-    "mean": 0.000016,
-    "std": 1.800097,
-    "min": -6.801019,
-    "max": 6.116340
+    "mean": 0.027492,
+    "std": 1.740145,
+    "min": -10.245833,
+    "max": 16.175940
   }
   },
 
   "generation_metadata": {
-    "generation_time": "20.79 seconds",
-    "dataset_shape": [15, 1001, 2, 200, 200]
+    "generation_time": "22.04 seconds",
+    "dataset_shape": [15, 2, 1001, 200, 200]
   }
   
 }

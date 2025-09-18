@@ -4,13 +4,13 @@
     "pde": "Kolmogorov",
     "ic": "SpectralFlow",
     "bc": "None",
-    "x_domain_extent": 128.0,
+    "x_domain_extent": 1.0,
     "num_points": 128,
     "dt_save": 0.001,
-    "t_end": 100.0,
+    "t_end": 10.0,
     "save_freq": 100,
-    "simulations": 10,
-    "plotted_sim": 10,
+    "simulations": 1,
+    "plotted_sim": 1,
     "plot_sim": "True",
     "stats": "True",
     "seed": 42,
@@ -37,23 +37,23 @@
 
 "2d_animations": {
   "mode": "physical",
-  "duration_sec": 10,
-  "fps": 20,
-  "dt_output": 1.0
+  "duration_sec": 5,
+  "fps": 10,
+  "dt_output": 0.3
 },
 
 "dataset_global_statistics": {
   "channel_0": {
-    "mean": 0.000000,
-    "std": 0.562932,
-    "min": -4.766301,
-    "max": 5.909781
+    "mean": 0.007812,
+    "std": 3.028802,
+    "min": -24.131292,
+    "max": 14.129121
   }
   },
 
   "generation_metadata": {
-    "generation_time": "7.32 seconds",
-    "dataset_shape": [10, 1, 5, 2048]
+    "generation_time": "7.13 seconds",
+    "dataset_shape": [1, 1, 10000, 128, 128]
   }
   
 }

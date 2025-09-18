@@ -151,7 +151,7 @@ seed = 42
 # Define PDE-to-colormap mapping. Change here if wanted
 pde_cmaps = {
     "GrayScott": "viridis",
-    "FisherKPP": "vidiris",
+    "FisherKPP": "viridis",
     "SwiftHohenberg": "viridis",
     "Burgers": "RdBu",
     "KuramotoSivashinsky": "RdBu",
@@ -416,7 +416,7 @@ if __name__ == "__main__":
         # Detect number of channels from first loaded dataset
         data = all_trajectories
         print("Original shape:", data.shape)
-        num_channels = data.shape[2] # Channels are in the third position
+        num_channels = data.shape[1] # Channels are in the second position
         print("Detected num_channels:", num_channels)
 
         # Initialize accumulators (outside the loop)
@@ -508,9 +508,9 @@ if __name__ == "__main__":
         x_extent=1.0,
         y_extent=1.0,
         dt_output=1.0,
-        mode="fixed",     # "physical" or "fixed"
+        mode="physical",     # "physical" or "fixed"
         duration_sec=10,
-        fps=20,
+        fps=10,
         cmap="viridis",
         vmin=None,
         vmax=None,
@@ -605,15 +605,15 @@ if __name__ == "__main__":
         )
 
         for n_sim in selected_simulations:
-            u_xt = all_trajectories[n_sim]  # shape: (T, C, X, Y)
-            num_channels = u_xt.shape[1]
+            u_xt = all_trajectories[n_sim]  # shape: (C, T, X, Y)
+            num_channels = u_xt.shape[0]
 
             # Use metadata function
             seed_val, nu_val, ic_val = get_sim_metadata(cfg, n_sim, seed_list, ic_hashes)
 
             for c in range(num_channels):
                 # Correct slicing: take all time steps for channel c
-                u_component = u_xt[:, c, :, :]  # shape (T, X, Y)
+                u_component = u_xt[c, :, :, :]  # shape (T, X, Y)
 
                 # Handle vmin/vmax safely
                 vmin_val = mins[c % len(mins)]
